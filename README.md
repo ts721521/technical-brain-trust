@@ -27,7 +27,7 @@ Use [DEPLOYMENT_RELEASE.md](./DEPLOYMENT_RELEASE.md) as the only deployment entr
 
 - Current release metadata: [config/deployment_release.yaml](./config/deployment_release.yaml)
 - Deployment changes: [DEPLOYMENT_CHANGELOG.md](./DEPLOYMENT_CHANGELOG.md)
-- Review trace record: [review_records/20260304_102620_Technical-Brain-Trust-部署到-Claw-可落地性评审.md](./review_records/20260304_102620_Technical-Brain-Trust-部署到-Claw-可落地性评审.md)
+- Internal review trace (optional): `review_records/`
 
 ## Repository Layout
 
@@ -44,4 +44,4 @@ Any deployment-related change must update all of:
 1. `config/deployment_release.yaml`
 2. `DEPLOYMENT_RELEASE.md`
 3. `DEPLOYMENT_CHANGELOG.md`
-4. review record latest trace chapter
+4. `review_records/` latest trace chapter (optional, for internal audit)
