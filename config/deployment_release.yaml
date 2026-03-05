@@ -1,0 +1,24 @@
+release_version: "v1.0.0"
+openclaw_compatibility: "2026.3.2"
+openai_policy:
+  type: "fixed"
+  allowed_model: "openai-codex/gpt-5.3-codex"
+required_scripts:
+  - "scripts/validate_brain_trust_env.sh"
+  - "scripts/sync_brain_trust_models.sh"
+  - "scripts/export_available_models.sh"
+  - "scripts/run_brain_trust_review.sh"
+  - "scripts/test_run_brain_trust_review_regression.sh"
+  - "scripts/bootstrap_brain_trust.sh"
+acceptance_checks:
+  - "bash -n scripts/run_brain_trust_review.sh"
+  - "bash -n scripts/validate_brain_trust_env.sh"
+  - "bash -n scripts/sync_brain_trust_models.sh"
+  - "bash -n scripts/test_run_brain_trust_review_regression.sh"
+  - "bash -n scripts/bootstrap_brain_trust.sh"
+  - "source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh"
+  - "scripts/test_run_brain_trust_review_regression.sh"
+  - "scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /tmp/brain_trust_e2e --local"
+notes:
+  - "Stage1 runs serially due to OpenClaw global default model config semantics."
+  - "Four-provider coverage is required in each role chain: OpenAI, Google, ZAI, Bailian."

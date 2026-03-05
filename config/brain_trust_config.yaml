@@ -1,0 +1,84 @@
+# Technical Brain Trust - Deployment Config v1.2
+# 模型ID使用环境变量提供：BT_*
+
+framework_version: "1.2"
+
+# 三角色模型配置（必须使用不同主模型）
+roles:
+  architect:
+    model_env: "BT_ARCHITECT_MODEL"
+    fallback_envs:
+      - "BT_ARCHITECT_FALLBACK_1"
+      - "BT_ARCHITECT_FALLBACK_2"
+      - "BT_ARCHITECT_FALLBACK_3"
+    description: "架构师 - 系统设计视角"
+
+  critic:
+    model_env: "BT_CRITIC_MODEL"
+    fallback_envs:
+      - "BT_CRITIC_FALLBACK_1"
+      - "BT_CRITIC_FALLBACK_2"
+      - "BT_CRITIC_FALLBACK_3"
+    description: "批判者 - 魔鬼代言人视角"
+
+  innovator:
+    model_env: "BT_INNOVATOR_MODEL"
+    fallback_envs:
+      - "BT_INNOVATOR_FALLBACK_1"
+      - "BT_INNOVATOR_FALLBACK_2"
+      - "BT_INNOVATOR_FALLBACK_3"
+    description: "创新者 - 发散思维视角"
+
+# 审查参数
+review:
+  default_depth: "standard"              # quick / standard / deep
+  required_methods_min: 2                # 每角色最少使用方法论数
+  consensus_threshold: 0.67              # 达成共识所需比例 (2/3)
+  consensus_score_diff: 2                # 评分差 <= 此值视为共识
+  auto_second_round: false               # 优化后是否自动再审
+  report_format: "structured"           # structured / narrative
+
+# 评分权重（可按项目调整，公式固定）
+# final_score = sum(weight_i * normalized_score_i)
+# risk_normalized = 11 - raw_risk_score
+scoring_weights:
+  feasibility: 0.25
+  robustness: 0.20
+  scalability: 0.15
+  simplicity: 0.15
+  innovation: 0.10
+  risk: 0.15            # 反向归一化后使用
+
+# 运行时约束
+runtime:
+  max_tokens_per_role: 16000             # 每角色 token 预算（提示项，当前不做硬截断）
+  max_proposal_chars: 24000              # 方案内容最大字符数（超限截断并留痕）
+  timeout_per_role_seconds: 120          # 每角色超时（秒）
+  retry:
+    max_attempts: 4                      # 最大重试次数（主模型 + 3级fallback）
+    backoff_seconds: 5                   # 重试间隔
+  degradation:
+    strategy: "continue_partial"         # continue_partial / abort / fallback_model
+    min_roles_required: 2                # 最少需要多少角色完成审查（不足则标记降级）
+    fallback_depth: "quick"              # 降级时切换到的审查深度
+
+# 输出存储
+output:
+  base_path: "reviews/"                  # 审查结果存储根目录
+  structure: "reviews/<timestamp>/"      # 每次审查创建子目录
+  files:
+    - "architect_review.md"
+    - "critic_review.md"
+    - "innovator_review.md"
+    - "architect_cross_review.md"
+    - "critic_cross_review.md"
+    - "innovator_cross_review.md"
+    - "editor_review.md"
+    - "summary_report.md"                # 合成报告
+    - "structured_summary.json"          # 结构化摘要（机读）
+
+# 开源方案推荐标准
+opensource_recommendation:
+  min_stars: 100                         # 推荐的 GitHub 项目最少 star 数
+  require_active_maintenance: true       # 最近 6 个月有 commit
+  max_open_critical_issues: 5            # 严重 issue 不超过此数

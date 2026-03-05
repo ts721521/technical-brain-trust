@@ -1,0 +1,26 @@
+name: brain_trust_verify
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bash syntax checks
+        run: |
+          bash -n scripts/run_brain_trust_review.sh
+          bash -n scripts/validate_brain_trust_env.sh
+          bash -n scripts/sync_brain_trust_models.sh
+          bash -n scripts/test_run_brain_trust_review_regression.sh
+          bash -n scripts/bootstrap_brain_trust.sh
+
+      - name: Regression suite
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/test_run_brain_trust_review_regression.sh

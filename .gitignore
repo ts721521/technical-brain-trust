@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# local env and secrets
+config/brain_trust.env
+.env
+.env.*
+
+# runtime outputs
+reviews/
+tmp/
+*.stderr
+*.bak
+
+# optional local worktree dir
+.worktrees/
+worktrees/
+
+# python
+__pycache__/
+*.pyc
