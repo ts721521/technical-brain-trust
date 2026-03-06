@@ -1,7 +1,8 @@
 # Brain Trust Review Workflow
 
 ## Purpose
-Run a full Brain Trust review for a proposal with three parallel role reviews and one synthesized report.
+Run a full Brain Trust four-stage closure for a proposal:
+Stage1 independent reviews (serial) -> Stage2 cross reviews -> Stage3 editor synthesis -> Stage4 pangu execution.
 
 ## Inputs
 - `proposal_path` (required): path to markdown proposal
@@ -15,21 +16,35 @@ The workflow must produce these files under `output_dir`:
 - `architect_review.md`
 - `critic_review.md`
 - `innovator_review.md`
+- `architect_cross_review.md`
+- `critic_cross_review.md`
+- `innovator_cross_review.md`
+- `editor_review.md`
+- `pangu_execution_plan.md`
+- `pangu_execution_report.md`
+- `pangu_execution_raw.json`
 - `summary_report.md`
 - `structured_summary.json`
 
 ## Execution Rules
 1. Validate env/config using `scripts/validate_brain_trust_env.sh`.
-2. Build one shared review prompt and dispatch to `architect`, `critic`, `innovator` in parallel.
-3. If one role fails, follow config degradation strategy:
+2. Stage1 runs in serial order `architect -> critic -> innovator` to avoid OpenClaw global model override conflicts.
+3. Stage2 cross review runs only when corresponding Stage1 role output exists.
+4. Stage3 editor synthesis merges consensus/divergence and outputs recommendation language only.
+5. Stage4 triggers `pangu` execution by default (auto, autonomous scope), consumes Stage3 outputs, and writes execution artifacts.
+6. If one role fails in Stage1, follow config degradation strategy:
 - if completed roles >= `runtime.degradation.min_roles_required`: mark as `degraded` and continue
 - else: fail the whole run
-4. Synthesize summary report with:
+7. If Stage4 fails:
+- apply `runtime.execution.on_failure`
+- default behavior is `degraded_continue` (full run continues with retryable items)
+8. Synthesize summary report with:
 - score overview
 - consensus/divergence notes
 - intent alignment summary
 - open-source validation evidence summary
 - complexity reduction summary
+- Stage4 execution summary
 
 ## Non-goals
 - No external adjudication or external routing.

@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.0.0
+# Brain Trust Deployment Release v1.4.2
 
 ## Scope
 
@@ -6,10 +6,13 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.0.0`
+- Release version: `v1.4.2`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
+- Standard chain: Stage1 review -> Stage2 cross review -> Stage3 editor synthesis -> Stage4 pangu execution -> Stage5 quality gate & improvement writeback (design contract)
+- Runtime topology: `main` mixed router -> `luban` architecture orchestration -> `pangu` execution queue scheduler -> `scheduler-*` independent dispatchers
+- Team model assignment policy: dynamic artifact output (not static deployment matrix)
 
 Source of truth: `config/deployment_release.yaml`
 
@@ -40,18 +43,99 @@ Main output:
 - `/tmp/brain_trust_bootstrap/model_assignment_record.json`
 - `/tmp/brain_trust_bootstrap/model_inventory/available_models.json`
 - `/tmp/brain_trust_bootstrap/e2e_output/*` (if E2E not skipped)
+- Stage4 deploy verification is included in deploy report: `execution_chain.status` and `e2e.stage4_status`
 
-## GitHub First Publish (private repo)
+## Runtime Permission Contract (Locked)
+
+1. Keep global `tools.profile=messaging`.
+2. Set agent override for `main` and `pangu`: `tools.profile=full`.
+3. Keep approval mode as ask (no blanket auto-allow).
+4. Maintain minimal allowlist for operational binaries on `main` and `pangu`.
+5. New `scheduler-*` agents should follow the same policy as `pangu`:
+   - `tools_profile=full`
+   - `approval_mode=ask`
+   - independent workspace and routing
+6. Pangu direct write to main is allowed only in whitelist paths with mandatory audit logs.
+
+## Team Interface Agent Contract (Locked)
+
+1. Team creation/restructure must output:
+- `team_blueprint.md`
+- `team_agent_contract.json`
+- `team_model_assignment.json`
+2. Each team must define a unique `interface_agent_id`.
+3. User interacts only with `interface_agent_id`; internal agents do not reply to user directly.
+4. `main` routes to `interface_agent_id` or `luban`, never direct to team internal agents.
+5. Model assignment must include `selection_rationale` per agent.
+
+## Memory Governance Contract (Layered)
+
+1. Main shared routing memory:
+   - `~/.openclaw/workspace/memory/ROUTING_MEMORY.md`
+   - `~/.openclaw/workspace/memory/ROUTING_DECISIONS.jsonl`
+   - `~/.openclaw/workspace/memory/PROMOTION_LOG.jsonl`
+2. Pangu private execution memory:
+   - `~/.openclaw/workspaces/pangu/memory/EXECUTION_LEARNINGS.md`
+   - `~/.openclaw/workspaces/pangu/memory/MAIN_PATCH_LOG.jsonl`
+3. Initialize/maintain with:
+   - `scripts/bootstrap_agent_memory_layers.sh`
+   - `scripts/route_learning_compact.sh`
+   - `scripts/promote_skill_from_pangu_to_main.sh`
+
+## Quality Closed-Loop Contract (Design-Level)
+
+This release also locks a design-layer quality loop for all teams:
+
+1. Quality Self-Gate Protocol (QSGP), mandatory 3 gates per delivery:
+- precheck gate
+- execution gate
+- release gate
+2. If any gate fails, delivery status must be `blocked`.
+3. Quality Evolution Loop (QEL), periodic cycle:
+- aggregate failures
+- identify top root causes
+- run targeted improvements
+- promote or rollback
+- refresh baseline metrics
+
+Design artifacts required by this contract:
+- `quality_gate_report.json`
+- `quality_improvement_log.jsonl`
+- `quality_baseline.yaml`
+
+## GitHub First Publish (public repo)
 
 ```bash
 cd /path/to/Technical_Brain_Trust
 
 # if no remote exists
 if ! git remote get-url origin >/dev/null 2>&1; then
-  gh repo create technical-brain-trust --private --source . --remote origin --push
+  gh repo create technical-brain-trust --public --source . --remote origin --push
 else
   git push -u origin main
 fi
+```
+
+## Public Release Publish Flow
+
+Use branch split to avoid contamination:
+- `main`: internal evolving branch
+- `release`: public reproducible package branch
+- `00_DEPLOY_BRAIN_TRUST.md`: internal handbook (main only, not included in release package)
+
+Build and verify `release` from `main`:
+
+```bash
+./scripts/build_release_branch.sh --version v1.4.2
+git switch release
+./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
+./scripts/check_release_docs_consistency.sh
+```
+
+Push public branch and tags:
+
+```bash
+git push origin release --tags
 ```
 
 ## Recommended Branch Protection
@@ -66,12 +150,26 @@ fi
 1. Syntax checks
 - `bash -n scripts/run_brain_trust_review.sh`
 - `bash -n scripts/validate_brain_trust_env.sh`
+- `bash -n scripts/bootstrap_luban_role.sh`
+- `bash -n scripts/validate_team_contract.sh`
 - `bash -n scripts/sync_brain_trust_models.sh`
 - `bash -n scripts/test_run_brain_trust_review_regression.sh`
 - `bash -n scripts/bootstrap_brain_trust.sh`
+- `bash -n scripts/bootstrap_agent_memory_layers.sh`
+- `bash -n scripts/route_learning_compact.sh`
+- `bash -n scripts/promote_skill_from_pangu_to_main.sh`
+- `bash -n scripts/verify_main_delegate_reliability.sh`
+- `bash -n scripts/pangu_task_scheduler.sh`
+- `bash -n scripts/ensure_scheduler_capacity.sh`
+- `bash -n scripts/verify_public_release.sh`
+- `bash -n scripts/build_release_branch.sh`
+- `bash -n scripts/check_release_docs_consistency.sh`
 
 2. Policy and env validation
 - `source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh`
+- `scripts/validate_team_contract.sh --dir roles/luban/templates`
+- `scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
+- `scripts/check_release_docs_consistency.sh`
 
 3. Regression
 - `scripts/test_run_brain_trust_review_regression.sh`
@@ -80,8 +178,9 @@ fi
 - `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /tmp/brain_trust_e2e --local`
 
 5. Contract checks
-- `structured_summary.json` includes: `stage1_mode`, `model_routing_summary`, `parse_diagnostics`, `score_summary`.
+- `structured_summary.json` includes: `stage1_mode`, `model_routing_summary`, `parse_diagnostics`, `score_summary`, `orchestration.stage4_status`, `execution_summary`, `scheduling_summary`.
 - Routing/output must not contain `spark` or unsupported OpenAI variants.
+- Stage4 artifacts exist: `pangu_execution_plan.md`, `pangu_execution_report.md`, `pangu_execution_raw.json`.
 
 ## Failure Recovery
 
@@ -99,6 +198,34 @@ fi
 - Keep regression as hard gate.
 - Re-run E2E with available quota and check routing/fallback logs.
 
+5. Stage4 execution failed
+- Confirm `pangu` agent exists and is callable.
+- Check `pangu_execution_raw.json.stderr` and `structured_summary.json.execution_summary.retryable_items`.
+- Re-run with the same proposal after provider recovery.
+6. Pangu cannot execute tool commands
+- Check `~/.openclaw/openclaw.json` has `pangu.tools.profile=full`.
+- Check `openclaw approvals get --json` includes `agents.pangu.allowlist`.
+- Run `openclaw config validate --json && openclaw gateway restart`.
+7. ClawHub install returns `Rate limit exceeded` or `Not logged in`
+- Run `clawhub login` first.
+- Retry `clawhub install --workdir ~/.openclaw/workspaces/pangu self-improving-agent`.
+- Verify with `clawhub list --workdir ~/.openclaw/workspaces/pangu`.
+- Note: `openclaw skills info` may not list third-party ClawHub skills in current OpenClaw build; do not block deployment on this check.
+8. Main routing quality degrades over time
+- Ensure dispatch logs are written to `ROUTING_DECISIONS.jsonl`.
+- Run `scripts/route_learning_compact.sh` to refresh route memory.
+9. Skill promotion needs controlled rollout
+- Run `scripts/promote_skill_from_pangu_to_main.sh --skill <slug>`.
+- Check both logs: `PROMOTION_LOG.jsonl` and `MAIN_PATCH_LOG.jsonl`.
+10. Delegate assigned but not delivered
+- Run `scripts/verify_main_delegate_reliability.sh` (mock acceptance).
+- Optional live check: `scripts/verify_main_delegate_reliability.sh --mode live`.
+- If live shows `delegate_unreachable`, follow retry command and re-check.
+11. Burst tasks overload pangu
+- Check queue status: `scripts/pangu_task_scheduler.sh stats --queue-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE.jsonl --state-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json`.
+- If backlog persists, run `scripts/ensure_scheduler_capacity.sh --queue-depth <n> --threshold 6 --registry-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_REGISTRY.json --events-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_EVENTS.jsonl`.
+- Check `structured_summary.json.scheduling_summary` for `queue_full|queue_dispatch_timeout|scheduler_spawn_failed`.
+
 ## Why Stage1 is Serial
 
 OpenClaw model defaults are globally shared at runtime. Running Stage1 in parallel can cause per-role model overrides to race. Serial execution preserves per-role routing correctness and traceability.
@@ -106,3 +233,9 @@ OpenClaw model defaults are globally shared at runtime. Running Stage1 in parall
 ## Detailed Handbook
 
 See `00_DEPLOY_BRAIN_TRUST.md` for expanded manual steps and troubleshooting context.
+
+## 发布机制文档
+
+- [Release Overview](./docs/RELEASE_OVERVIEW.md)
+- [AI Release Protocol](./docs/AI_RELEASE_PROTOCOL.md)
+- [Human Release Runbook](./docs/HUMAN_RELEASE_RUNBOOK.md)

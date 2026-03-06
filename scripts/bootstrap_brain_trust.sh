@@ -103,9 +103,13 @@ record_artifact() {
 status_preflight="pending"
 status_agents="pending"
 status_validation="pending"
+status_luban_role="pending"
+status_team_contract="pending"
 status_model_sync="pending"
 status_regression="pending"
+status_execution_chain="pending"
 status_e2e="pending"
+e2e_stage4_status="unknown"
 
 read_release_value() {
   local key="$1"
@@ -172,6 +176,8 @@ fi
 if [[ "${status_preflight}" == "complete" ]]; then
   for req in \
     "${ROOT_DIR}/scripts/validate_brain_trust_env.sh" \
+    "${ROOT_DIR}/scripts/bootstrap_luban_role.sh" \
+    "${ROOT_DIR}/scripts/validate_team_contract.sh" \
     "${ROOT_DIR}/scripts/sync_brain_trust_models.sh" \
     "${ROOT_DIR}/scripts/export_available_models.sh" \
     "${ROOT_DIR}/scripts/test_run_brain_trust_review_regression.sh" \
@@ -185,7 +191,7 @@ fi
 
 # 2) agent check/create
 agents_log="${RECORD_DIR}/agents.log"
-roles=(architect critic innovator)
+roles=(architect critic innovator pangu luban)
 if [[ "${status_preflight}" != "failed" ]]; then
   if ! openclaw agents list >"${agents_log}" 2>&1; then
     status_agents="failed"
@@ -195,10 +201,21 @@ if [[ "${status_preflight}" != "failed" ]]; then
     agents_output="$(cat "${agents_log}")"
     for role in "${roles[@]}"; do
       workspace="${ROOT_DIR}/roles/${role}"
+      if [[ "${role}" == "pangu" || "${role}" == "luban" ]]; then
+        workspace="${HOME}/.openclaw/workspaces/pangu"
+        if [[ "${role}" == "luban" ]]; then
+          workspace="${HOME}/.openclaw/workspaces/luban"
+        fi
+      fi
       if [[ ! -d "${workspace}" ]]; then
-        status_agents="failed"
-        record_failure "agents" "missing role workspace: ${workspace}"
-        continue
+        if [[ "${role}" == "pangu" || "${role}" == "luban" ]]; then
+          mkdir -p "${workspace}"
+          printf '[agents] created workspace: %s (%s)\n' "${role}" "${workspace}" >>"${agents_log}"
+        else
+          status_agents="failed"
+          record_failure "agents" "missing role workspace: ${workspace}"
+          continue
+        fi
       fi
 
       if printf '%s\n' "${agents_output}" | rg -q -- "- ${role}(\s|$)"; then
@@ -242,6 +259,65 @@ elif run_cmd_log "validation" "${validation_log}" "${ROOT_DIR}/scripts/validate_
 else
   status_validation="failed"
   record_failure "validation" "validate_brain_trust_env.sh failed"
+fi
+
+# 3.5) execution chain availability (Stage4)
+if [[ "${status_validation}" != "complete" ]]; then
+  status_execution_chain="failed"
+  record_failure "execution_chain" "skipped because validation failed"
+elif rg -q "run_pangu_execution" "${ROOT_DIR}/scripts/run_brain_trust_review.sh" && \
+     rg -q "stage4_status" "${ROOT_DIR}/scripts/run_brain_trust_review.sh"; then
+  status_execution_chain="complete"
+else
+  status_execution_chain="failed"
+  record_failure "execution_chain" "run_brain_trust_review.sh missing Stage4 execution markers"
+fi
+
+# 3.6) luban role bootstrap
+luban_bootstrap_log="${RECORD_DIR}/luban_bootstrap.log"
+luban_report="${RECORD_DIR}/luban_bootstrap_report.json"
+if [[ "${status_validation}" != "complete" ]]; then
+  status_luban_role="failed"
+  record_failure "luban" "skipped because validation failed"
+else
+  luban_cmd=("${ROOT_DIR}/scripts/bootstrap_luban_role.sh" --root "${ROOT_DIR}" --workspace "${HOME}/.openclaw/workspaces/luban" --report "${luban_report}")
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    luban_cmd+=(--dry-run)
+  fi
+  if [[ "${NON_INTERACTIVE}" == "true" ]]; then
+    luban_cmd+=(--non-interactive)
+  fi
+  if run_cmd_log "luban" "${luban_bootstrap_log}" "${luban_cmd[@]}"; then
+    if [[ "${DRY_RUN}" == "true" ]]; then
+      status_luban_role="dry_run"
+    else
+      status_luban_role="complete"
+    fi
+  else
+    status_luban_role="failed"
+    record_failure "luban" "bootstrap_luban_role.sh failed"
+  fi
+  [[ -f "${luban_report}" ]] && record_artifact "${luban_report}"
+fi
+
+# 3.7) team contract schema validation
+team_contract_log="${RECORD_DIR}/team_contract_validation.log"
+team_contract_dir="${HOME}/.openclaw/workspaces/luban/templates"
+if [[ ! -d "${team_contract_dir}" ]]; then
+  team_contract_dir="${ROOT_DIR}/roles/luban/templates"
+fi
+if [[ "${status_luban_role}" == "failed" ]]; then
+  status_team_contract="failed"
+  record_failure "team_contract" "skipped because luban bootstrap failed"
+elif run_cmd_log "team_contract" "${team_contract_log}" "${ROOT_DIR}/scripts/validate_team_contract.sh" --dir "${team_contract_dir}"; then
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    status_team_contract="dry_run"
+  else
+    status_team_contract="complete"
+  fi
+else
+  status_team_contract="failed"
+  record_failure "team_contract" "validate_team_contract.sh failed"
 fi
 
 # 4) model sync + inventory
@@ -293,9 +369,9 @@ fi
 
 # 5) regression
 regression_log="${RECORD_DIR}/regression.log"
-if [[ "${status_model_sync}" == "failed" ]]; then
+if [[ "${status_model_sync}" == "failed" || "${status_luban_role}" == "failed" || "${status_team_contract}" == "failed" ]]; then
   status_regression="failed"
-  record_failure "regression" "skipped because model_sync failed"
+  record_failure "regression" "skipped because prerequisite failed"
 elif run_cmd_log "regression" "${regression_log}" "${ROOT_DIR}/scripts/test_run_brain_trust_review_regression.sh"; then
   status_regression="complete"
 else
@@ -319,9 +395,29 @@ else
 
   if run_cmd_log "e2e" "${e2e_log}" "${e2e_cmd[@]}"; then
     if [[ -f "${e2e_dir}/structured_summary.json" ]]; then
-      status_e2e="complete"
+      if [[ -f "${e2e_dir}/pangu_execution_plan.md" && -f "${e2e_dir}/pangu_execution_report.md" && -f "${e2e_dir}/pangu_execution_raw.json" ]]; then
+        e2e_stage4_status="$(python3 - "${e2e_dir}/structured_summary.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+try:
+    data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+except Exception:
+    print("unknown")
+    raise SystemExit(0)
+print(str(data.get("orchestration", {}).get("stage4_status", "unknown")))
+PY
+)"
+        status_e2e="complete"
+      else
+        status_e2e="failed"
+        record_failure "e2e" "missing Stage4 output artifacts in e2e output"
+      fi
       record_artifact "${e2e_dir}/structured_summary.json"
       record_artifact "${e2e_dir}/summary_report.md"
+      [[ -f "${e2e_dir}/pangu_execution_plan.md" ]] && record_artifact "${e2e_dir}/pangu_execution_plan.md"
+      [[ -f "${e2e_dir}/pangu_execution_report.md" ]] && record_artifact "${e2e_dir}/pangu_execution_report.md"
+      [[ -f "${e2e_dir}/pangu_execution_raw.json" ]] && record_artifact "${e2e_dir}/pangu_execution_raw.json"
     else
       status_e2e="failed"
       record_failure "e2e" "missing structured_summary.json in e2e output"
@@ -338,7 +434,7 @@ if command -v openclaw >/dev/null 2>&1; then
   openclaw_version="$(openclaw --version 2>/dev/null | head -n 1 | tr -d '\r')"
 fi
 
-python3 - "${REPORT_FILE}" "${release_version}" "${release_openclaw_compat}" "${openclaw_version}" "${status_preflight}" "${status_agents}" "${status_validation}" "${status_model_sync}" "${status_regression}" "${status_e2e}" "${FAILURES_FILE}" "${ARTIFACTS_FILE}" <<'PY'
+python3 - "${REPORT_FILE}" "${release_version}" "${release_openclaw_compat}" "${openclaw_version}" "${status_preflight}" "${status_agents}" "${status_validation}" "${status_luban_role}" "${status_team_contract}" "${status_model_sync}" "${status_regression}" "${status_execution_chain}" "${status_e2e}" "${e2e_stage4_status}" "${FAILURES_FILE}" "${ARTIFACTS_FILE}" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -352,9 +448,13 @@ from pathlib import Path
     status_preflight,
     status_agents,
     status_validation,
+    status_luban_role,
+    status_team_contract,
     status_model_sync,
     status_regression,
+    status_execution_chain,
     status_e2e,
+    e2e_stage4_status,
     failures_file,
     artifacts_file,
 ) = sys.argv[1:]
@@ -376,11 +476,17 @@ payload = {
     "openclaw_compatibility": openclaw_compat,
     "openclaw_version": openclaw_version,
     "preflight": {"status": status_preflight},
-    "agents": {"status": status_agents},
+    "agents": {
+        "status": status_agents,
+        "required": ["architect", "critic", "innovator", "pangu", "luban"],
+    },
     "validation": {"status": status_validation},
+    "luban": {"status": status_luban_role},
+    "team_contract_validation": {"status": status_team_contract},
     "model_sync": {"status": status_model_sync},
     "regression": {"status": status_regression},
-    "e2e": {"status": status_e2e},
+    "execution_chain": {"status": status_execution_chain},
+    "e2e": {"status": status_e2e, "stage4_status": e2e_stage4_status},
     "artifacts": artifacts,
     "failures": failures,
 }

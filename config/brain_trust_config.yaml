@@ -1,7 +1,7 @@
-# Technical Brain Trust - Deployment Config v1.2
+# Technical Brain Trust - Deployment Config v1.3
 # 模型ID使用环境变量提供：BT_*
 
-framework_version: "1.2"
+framework_version: "1.3"
 
 # 三角色模型配置（必须使用不同主模型）
 roles:
@@ -61,6 +61,23 @@ runtime:
     strategy: "continue_partial"         # continue_partial / abort / fallback_model
     min_roles_required: 2                # 最少需要多少角色完成审查（不足则标记降级）
     fallback_depth: "quick"              # 降级时切换到的审查深度
+  execution:
+    enabled: true
+    executor_agent: "pangu"
+    timeout_seconds: 240
+    max_attempts: 2
+    backoff_seconds: 5
+    on_failure: "degraded_continue"      # degraded_continue / fail
+  scheduler:
+    enabled: true
+    scope: "execution_heavy_only"
+    max_inflight: 2
+    queue_max: 50
+    backlog_scale_threshold: 6
+    dispatch_timeout_seconds: 180
+    retry:
+      max_attempts: 2
+      backoff_seconds: 5
 
 # 输出存储
 output:
@@ -74,6 +91,10 @@ output:
     - "critic_cross_review.md"
     - "innovator_cross_review.md"
     - "editor_review.md"
+    - "pangu_execution_plan.md"
+    - "pangu_execution_report.md"
+    - "pangu_execution_raw.json"
+    - "pangu_execution_raw.json.stderr"
     - "summary_report.md"                # 合成报告
     - "structured_summary.json"          # 结构化摘要（机读）
 

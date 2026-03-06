@@ -81,6 +81,7 @@ Agents:
 - architect
 - critic
 - innovator
+- pangu
 TXT
   exit 0
 fi
@@ -193,6 +194,11 @@ if [[ "${mode}" == "parse_error_critic" && "${agent}" == "critic" ]]; then
   exit 0
 fi
 
+if [[ "${mode}" == "pangu_fail" && "${agent}" == "pangu" ]]; then
+  echo "simulated pangu execution timeout" >&2
+  exit 124
+fi
+
 case "${agent}" in
   architect)
     emit_json_response "$(cat <<'MD'
@@ -240,6 +246,29 @@ MD
   "intent_alignment": {"misalignment_found": false, "evidence": "ok", "correction": ""},
   "complexity_reduction": {"reduction_required": false, "items": [], "rationale": ""},
   "opensource_validation": []
+}
+```
+MD
+)"
+    ;;
+  pangu)
+    emit_json_response "$(cat <<'MD'
+## 执行计划
+1. 先落实全部 P0
+2. 按收益/风险排序推进 P1
+
+## 执行结果
+- 已完成：P0-1
+- 延后：P1-2
+
+```json
+{
+  "trigger_mode": "auto",
+  "scope_mode": "autonomous",
+  "implemented_items": ["P0-1"],
+  "deferred_items": ["P1-2"],
+  "retryable_items": [],
+  "failure_reason": ""
 }
 ```
 MD
@@ -298,12 +327,19 @@ assert_json "${out_normal}/structured_summary.json" "data['score_summary']['stat
 assert_json "${out_normal}/structured_summary.json" "data['final_score'] > 0"
 assert_json "${out_normal}/structured_summary.json" "data['orchestration']['stage2_status'] in ('complete', 'degraded')"
 assert_json "${out_normal}/structured_summary.json" "data['orchestration']['stage3_status'] == 'complete'"
+assert_json "${out_normal}/structured_summary.json" "data['orchestration']['stage4_status'] == 'complete'"
+assert_json "${out_normal}/structured_summary.json" "data['orchestration']['stage4_executor'] == 'pangu'"
+assert_json "${out_normal}/structured_summary.json" "'execution_summary' in data"
+assert_json "${out_normal}/structured_summary.json" "'scheduling_summary' in data"
 assert_json "${out_normal}/structured_summary.json" "'model_routing_summary' in data"
 assert_json "${out_normal}/structured_summary.json" "all('spark' not in item['model'] for role in data['model_routing_summary'].values() for item in role['attempts'])"
 [[ -f "${out_normal}/architect_cross_review.md" ]]
 [[ -f "${out_normal}/critic_cross_review.md" ]]
 [[ -f "${out_normal}/innovator_cross_review.md" ]]
 [[ -f "${out_normal}/editor_review.md" ]]
+[[ -f "${out_normal}/pangu_execution_plan.md" ]]
+[[ -f "${out_normal}/pangu_execution_report.md" ]]
+[[ -f "${out_normal}/pangu_execution_raw.json" ]]
 
 out_degraded="${tmp_dir}/out_degraded"
 run_case "degraded_fail_innovator" "${short_proposal}" "${out_degraded}"
@@ -333,5 +369,13 @@ out_quota="${tmp_dir}/out_quota"
 run_case "quota_first_try" "${short_proposal}" "${out_quota}"
 assert_json "${out_quota}/structured_summary.json" "len(data['model_routing_summary']['critic']['attempts']) >= 2"
 assert_json "${out_quota}/structured_summary.json" "'rate_or_quota' in data['model_routing_summary']['critic']['switch_reasons']"
+
+out_pangu_fail="${tmp_dir}/out_pangu_fail"
+run_case "pangu_fail" "${short_proposal}" "${out_pangu_fail}"
+assert_json "${out_pangu_fail}/structured_summary.json" "data['orchestration']['stage4_status'] == 'degraded'"
+assert_json "${out_pangu_fail}/structured_summary.json" "len(data['execution_summary']['retryable_items']) >= 1"
+assert_json "${out_pangu_fail}/structured_summary.json" "data['scheduling_summary']['status'] in ('dispatched','timeout','rejected','failed','skipped')"
+assert_json "${out_pangu_fail}/structured_summary.json" "data['execution_status'] in ('normal','degraded')"
+[[ -f "${out_pangu_fail}/pangu_execution_raw.json.stderr" ]]
 
 echo "All regression checks passed."

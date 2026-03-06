@@ -1,0 +1,34 @@
+{
+  "team_id": "sample-team",
+  "generated_by": "luban",
+  "generated_at": "2026-03-05T00:00:00Z",
+  "global_constraints": {
+    "openai_allowed": [
+      "openai-codex/gpt-5.3-codex"
+    ],
+    "provider_diversity_required": true
+  },
+  "agents": [
+    {
+      "agent_id": "scheduler-sample",
+      "primary_model": "zai/glm-5",
+      "fallback_models": [
+        "google-gemini-cli/gemini-3.1-pro-preview",
+        "openai-codex/gpt-5.3-codex"
+      ],
+      "selection_rationale": "接口编排优先稳定推理与跨供应商容灾。",
+      "workload_type": "planning"
+    },
+    {
+      "agent_id": "worker-sample",
+      "primary_model": "openai-codex/gpt-5.3-codex",
+      "fallback_models": [
+        "zai/glm-5",
+        "bailian/qwen3.5-plus"
+      ],
+      "selection_rationale": "执行任务优先代码/实施能力模型。",
+      "workload_type": "execution"
+    }
+  ]
+}
+

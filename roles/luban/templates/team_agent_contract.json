@@ -1,0 +1,48 @@
+{
+  "team_id": "sample-team",
+  "interface_agent_id": "scheduler-sample",
+  "interface_scope": [
+    "需求受理",
+    "任务拆解",
+    "结果汇总"
+  ],
+  "internal_agents": [
+    {
+      "agent_id": "scheduler-sample",
+      "role": "interface_orchestrator",
+      "responsibilities": [
+        "统一对外接口",
+        "内部任务分发"
+      ],
+      "handoff_inputs": [
+        "用户需求"
+      ],
+      "handoff_outputs": [
+        "执行摘要",
+        "最终回复"
+      ]
+    },
+    {
+      "agent_id": "worker-sample",
+      "role": "internal_executor",
+      "responsibilities": [
+        "执行子任务",
+        "回传执行结果"
+      ],
+      "handoff_inputs": [
+        "子任务说明"
+      ],
+      "handoff_outputs": [
+        "子任务结果"
+      ]
+    }
+  ],
+  "dispatch_rules": [
+    {
+      "intent_class": "execution_heavy",
+      "target_agent_id": "worker-sample",
+      "fallback_agent_id": "scheduler-sample"
+    }
+  ]
+}
+

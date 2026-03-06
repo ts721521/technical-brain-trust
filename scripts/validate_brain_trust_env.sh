@@ -46,6 +46,17 @@ required_yaml_keys=(
   "max_attempts"
   "degradation:"
   "min_roles_required"
+  "execution:"
+  "enabled:"
+  "executor_agent:"
+  "timeout_seconds:"
+  "on_failure:"
+  "scheduler:"
+  "scope:"
+  "max_inflight:"
+  "queue_max:"
+  "backlog_scale_threshold:"
+  "dispatch_timeout_seconds:"
 )
 
 for key in "${required_yaml_keys[@]}"; do
@@ -54,6 +65,98 @@ for key in "${required_yaml_keys[@]}"; do
     exit 1
   fi
 done
+
+python3 - "${CONFIG_FILE}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+
+def strip_inline_comment(s: str) -> str:
+    out = []
+    in_single = False
+    in_double = False
+    for ch in s:
+        if ch == "'" and not in_double:
+            in_single = not in_single
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch == "#" and not in_single and not in_double:
+            break
+        out.append(ch)
+    return "".join(out).rstrip()
+
+
+def parse_scalar(raw: str):
+    val = raw.strip()
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+        return val[1:-1]
+    if re.fullmatch(r"-?\d+", val):
+        return int(val)
+    if re.fullmatch(r"-?\d+\.\d+", val):
+        return float(val)
+    lowered = val.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return val
+
+
+cfg_path = Path(sys.argv[1])
+root = {}
+stack = [(-1, root)]
+
+for raw_line in cfg_path.read_text(encoding="utf-8").splitlines():
+    if not raw_line.strip() or raw_line.lstrip().startswith("#"):
+        continue
+    indent = len(raw_line) - len(raw_line.lstrip(" "))
+    content = strip_inline_comment(raw_line.lstrip(" "))
+    if not content or content.startswith("- ") or ":" not in content:
+        continue
+    key, val = content.split(":", 1)
+    key = key.strip()
+    val = val.strip()
+    while stack and indent <= stack[-1][0]:
+        stack.pop()
+    parent = stack[-1][1] if stack else root
+    if val == "":
+        node = {}
+        parent[key] = node
+        stack.append((indent, node))
+    else:
+        parent[key] = parse_scalar(val)
+
+
+def get(path: str):
+    node = root
+    for part in path.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+checks = {
+    "runtime.scheduler.max_inflight": lambda v: isinstance(v, int) and v >= 1,
+    "runtime.scheduler.queue_max": lambda v: isinstance(v, int) and v >= 1,
+    "runtime.scheduler.backlog_scale_threshold": lambda v: isinstance(v, int) and v >= 1,
+    "runtime.scheduler.dispatch_timeout_seconds": lambda v: isinstance(v, int) and v >= 1,
+    "runtime.scheduler.retry.max_attempts": lambda v: isinstance(v, int) and v >= 1,
+    "runtime.scheduler.retry.backoff_seconds": lambda v: isinstance(v, (int, float)) and v >= 0,
+}
+
+for key, fn in checks.items():
+    value = get(key)
+    if not fn(value):
+        print(f"Invalid scheduler config value: {key}={value}", file=sys.stderr)
+        raise SystemExit(1)
+
+scope = get("runtime.scheduler.scope")
+if scope != "execution_heavy_only":
+    print(f"Invalid runtime.scheduler.scope: {scope}", file=sys.stderr)
+    raise SystemExit(1)
+PY
 
 available_models=()
 while IFS= read -r line; do
@@ -123,8 +226,8 @@ if (( ${#openai_violations[@]} > 0 )); then
 fi
 
 agents_output="$(openclaw agents list 2>/dev/null || true)"
-for role in architect critic innovator; do
-  if ! printf '%s\n' "${agents_output}" | rg -q -- "- ${role}$"; then
+for role in architect critic innovator pangu luban; do
+  if ! printf '%s\n' "${agents_output}" | rg -q -- "- ${role}(\\s|$)"; then
     echo "Missing required agent: ${role}. Run openclaw agents add ${role} ..." >&2
     exit 1
   fi

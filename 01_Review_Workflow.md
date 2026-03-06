@@ -1,6 +1,6 @@
 # 📋 审查工作流 (Review Workflow)
 
-> **用途**：定义主 Agent 如何将方案发送给智囊团审查，并通过“先独立、后对齐、再整合”的编排机制稳定产出可执行结论。
+> **用途**：定义主 Agent 如何将方案发送给智囊团审查，并通过“先独立、后对齐、再整合、再执行”的编排机制稳定产出闭环结果。
 
 ---
 
@@ -11,7 +11,7 @@
 人类："审查这个方案" 或 "让智囊团看看这个"
   → 主 Agent 收集方案内容
   → 填写 02_Proposal_Submission_Template.md
-  → 启动三段式审查
+  → 启动五段式闭环
 ```
 
 ### 方式 2：Agent 主动提交
@@ -55,12 +55,12 @@
 
 ---
 
-## 三段式编排
+## 五段式编排
 
 ### Stage 1：独立评审（防互相带偏）
 
 ```
-并行发送同一方案 + 同一量表给三角色
+串行发送同一方案 + 同一量表给三角色（architect -> critic -> innovator）
   → 角色独立输出，不看其他角色结果
 ```
 
@@ -93,6 +93,34 @@
 5. 行动项表（事项/负责人/截止时间/验收口径）
 6. 未决问题（需要补充数据/实验）
 
+### Stage 4：盘古执行（默认自动触发）
+
+```
+将 Stage 3 产物提交给 pangu
+  → pangu 自主判断执行范围（必须说明范围与理由）
+  → 输出执行计划 + 执行结果 + 结构化执行摘要
+```
+
+Stage 4 产物：
+- `pangu_execution_plan.md`
+- `pangu_execution_report.md`
+- `pangu_execution_raw.json`
+- `pangu_execution_raw.json.stderr`（失败留痕）
+
+### Stage 5：质量门禁与改进回写（QSGP + QEL）
+
+```
+在 Stage 4 产物基础上执行质量自把关与持续改进回写
+  → 产出 quality_gate_report.json（本次交付质量门禁）
+  → 更新 quality_improvement_log.jsonl（周期改进台账）
+  → 更新 quality_baseline.yaml（质量基线）
+```
+
+Stage 5 强制规则：
+1. 任一质量关失败，交付状态必须为 `blocked`。
+2. 交付必须包含验证证据与回滚计划。
+3. 周期改进必须含量化指标变化，不允许空转。
+
 ---
 
 ## 主 Agent 操作指南
@@ -106,11 +134,13 @@
   ✅ 特别关注点（如有）
 ```
 
-### Step 2: 执行三段式流程
+### Step 2: 执行五段式流程
 ```
-Stage 1：三角色并行独立评审
+Stage 1：三角色串行独立评审
 Stage 2：三角色交叉复核
 Stage 3：Editor 总编整合输出
+Stage 4：盘古执行（默认自动）
+Stage 5：质量门禁与改进回写
 ```
 
 ### Step 3: 返回给提案方
@@ -126,9 +156,31 @@ Stage 3：Editor 总编整合输出
 
 ### 角色失败处理
 ```
+若 pangu 超时或失败：
+  1) 按 config.runtime.execution 重试
+  2) 超过上限后默认标记为 degraded（on_failure=degraded_continue）
+  3) 输出 retryable_items，供人类或后续重试
 若单角色超时或失败：
   1) 按 config.runtime.retry 重试
   2) 达到重试上限后，按 config.runtime.degradation 执行降级
+```
+
+### Stage 4 失败处理（无外部转介）
+
+```
+若 pangu 超时或失败：
+  1) 按 config.runtime.execution 重试
+  2) 超过上限后默认标记为 degraded（on_failure=degraded_continue）
+  3) 输出 retryable_items，供人类或后续重试
+```
+
+### Stage 5 失败处理（质量门禁）
+
+```
+若质量门禁任一关失败：
+  1) 强制标记交付为 blocked
+  2) 记录 blocked_reasons 并回写 quality_gate_report.json
+  3) 不得标记“完成”，必须进入修复或回滚流程
 ```
 
 ### 最低可交付门槛
@@ -199,4 +251,23 @@ Stage 3：Editor 总编整合输出
 4) 给出最终建议语义：建议采纳 / 建议优化后采纳 / 建议重审
 
 注意：你不做最终裁决，最终拍板在人类。
+```
+
+## 盘古执行 Prompt 骨架（Stage 4）
+
+```markdown
+你是执行者 pangu。基于 Stage 3 的 `editor_review.md`、`summary_report.md`、`structured_summary.json` 执行落地。
+必须输出：
+1) 执行计划（范围与理由）
+2) 执行结果（已完成项、延后项、可重试项）
+3) 结构化 JSON：
+{
+  "trigger_mode": "auto",
+  "scope_mode": "autonomous",
+  "implemented_items": [],
+  "deferred_items": [],
+  "retryable_items": [],
+  "failure_reason": ""
+}
+不要输出裁决语义，最终拍板在人类。
 ```

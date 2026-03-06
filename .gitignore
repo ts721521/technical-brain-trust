@@ -9,6 +9,7 @@ config/brain_trust.env
 # runtime outputs
 reviews/
 tmp/
+release_publish_report.json
 *.stderr
 *.bak
 

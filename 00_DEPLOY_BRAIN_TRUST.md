@@ -2,22 +2,144 @@
 
 > 发布入口：请优先使用 `DEPLOYMENT_RELEASE.md` 作为标准化跨 Claw 部署说明；本文保留详细背景与手工步骤。
 
-> **目标**：在 OpenClaw 中部署 4 个独立 Agent，每个有自己的对话窗口。
+> **目标**：在 OpenClaw 中落地 `main 入口 + pangu 执行孵化 + scheduler-* 独立调度` 的四段式闭环执行体系。
 > **前提**：OpenClaw 已安装且 `openclaw configure` 已完成（至少有 main agent 在运行）。
 > **耗时**：~10 分钟。
 
 ---
+
+## 运行架构（锁定）
+
+1. `main`：默认入口 + 路由中枢（支持轻执行 + 自动分发 + 路由学习）。
+2. `luban`：总架构师与团队编排官，负责产出团队结构与接口契约。
+3. `architect/critic/innovator`：智囊团审查角色（Stage1/2/3）。
+4. `pangu`：执行与孵化核心（Stage4），可直写增强 main（受白名单和审计约束）。
+5. `scheduler-*`：由 `pangu` 按需孵化的独立调度人，权限与 `pangu` 同级，审批模式保持 `ask`。
 
 ## 部署成员
 
 | # | Agent ID | 名称 | Emoji | 角色 |
 |---|---|---|---|---|
 | 1 | `pangu` | 盘古 | 🌅 | 全能执行者——写代码、写方案、写标书、写 PPT、做研究 |
-| 2 | `architect` | 架构师 | 🏗️ | 智囊团角色——审方案建得好不好 |
-| 3 | `critic` | 批判者 | 🔴 | 智囊团角色——审方案会怎么死 |
-| 4 | `innovator` | 创新者 | 💡 | 智囊团角色——审有没有更好的方式 |
+| 2 | `luban` | 鲁班 | 🧱 | 总架构师——设计团队结构、接口代理与协作契约 |
+| 3 | `architect` | 架构师 | 🏗️ | 智囊团角色——审方案建得好不好 |
+| 4 | `critic` | 批判者 | 🔴 | 智囊团角色——审方案会怎么死 |
+| 5 | `innovator` | 创新者 | 💡 | 智囊团角色——审有没有更好的方式 |
+
+## 团队输出契约（强制）
+
+创建团队或重构团队时，禁止写死静态模型矩阵。必须由 `luban/architect` 输出动态交付物：
+
+1. `team_blueprint.md`（人类可读）
+2. `team_agent_contract.json`（机器可读）
+3. `team_model_assignment.json`（动态模型分配）
+
+关键规则：
+
+1. 每个团队必须定义唯一 `interface_agent_id`（团队唯一外部入口）。
+2. 用户只与 `interface_agent_id` 交互，`main` 不直连团队内部 agent。
+3. 内部 agent 仅处理子任务，不直接对用户输出最终结论。
+4. 每个 agent 的模型分配必须含 `selection_rationale`，且 OpenAI 仅允许 `openai-codex/gpt-5.3-codex`。
 
 ---
+
+## 运行时权限基线（必须落盘）
+
+全局保持最小权限，给 `main` 和 `pangu` 做 agent 级提权，其他 agent 不提权。
+
+```bash
+# 1) 备份运行配置
+cp ~/.openclaw/openclaw.json ~/.openclaw/openclaw.json.bak.$(date +%Y%m%d_%H%M%S)
+cp ~/.openclaw/exec-approvals.json ~/.openclaw/exec-approvals.json.bak.$(date +%Y%m%d_%H%M%S)
+
+# 2) 在 openclaw.json 中确认：
+# - 全局 tools.profile = messaging
+# - main agent 级 tools.profile = full
+# - pangu agent 级 tools.profile = full
+
+# 3) 审批模式保持 ask，不做全自动放开；仅添加最小 allowlist（示例）
+openclaw approvals allowlist add --agent main "/opt/homebrew/bin/openclaw"
+openclaw approvals allowlist add --agent main "/opt/homebrew/bin/clawhub"
+openclaw approvals allowlist add --agent main "/usr/bin/git"
+openclaw approvals allowlist add --agent main "/usr/bin/python3"
+openclaw approvals allowlist add --agent main "/usr/bin/pip3"
+openclaw approvals allowlist add --agent pangu "/opt/homebrew/bin/clawhub"
+
+# 4) 生效校验
+openclaw config validate --json
+openclaw gateway restart
+openclaw approvals get --json
+```
+
+说明：
+- `main` 与 `pangu` 均可执行命令，但高风险命令仍需审批。
+- `scheduler-*` 推荐沿用同一策略：`tools.profile=full` + `approval_mode=ask`。
+- `main` 默认执行安装/检查/同步类任务；重执行任务自动委派 `pangu/scheduler-*`。
+
+## 分层记忆治理（必须落盘）
+
+```bash
+# 初始化 main/pangu/scheduler-template 分层记忆目录
+./scripts/bootstrap_agent_memory_layers.sh
+
+# 主路由学习压缩（建议周期运行）
+./scripts/route_learning_compact.sh
+```
+
+目录约定：
+- `~/.openclaw/workspace/memory/ROUTING_MEMORY.md`（共享路由记忆）
+- `~/.openclaw/workspace/memory/ROUTING_DECISIONS.jsonl`（路由流水）
+- `~/.openclaw/workspace/memory/PROMOTION_LOG.jsonl`（晋升日志）
+- `~/.openclaw/workspaces/pangu/memory/MAIN_PATCH_LOG.jsonl`（盘古直写审计）
+
+直写边界（盘古 -> main）：
+- 允许：`workspace/memory/**`、`workspace/skills/**`、`workspace/AGENTS.md` 路由段
+- 禁止：`~/.openclaw/openclaw.json`、`~/.openclaw/exec-approvals.json`
+
+## 委派可达性闭环（必须落盘）
+
+```bash
+# 1) 运行可达性验证（默认 mock 稳定验收）
+./scripts/verify_main_delegate_reliability.sh
+
+# 2) 可选：真实联调模式（依赖模型/会话状态）
+./scripts/verify_main_delegate_reliability.sh --mode live --timeout 120
+```
+
+闭环语义：
+- 委派前置检查：`delegate_preflight`
+- 自动补救：`send -> spawn -> resend`
+- 失败码：`delegate_unreachable|delegate_timeout|delegate_send_failed|delegate_recovered`
+- `execution_heavy` 委派失败仅降级重试，不做 main 强兜底执行
+
+## 突发任务排程闭环（execution_heavy 专用）
+
+`execution_heavy` 从“直接委派”升级为“先入队再调度”：
+
+1. 单队列：`~/.openclaw/workspaces/pangu/memory/TASK_QUEUE.jsonl`
+2. 并发上限：`max_inflight=2`
+3. 超阈值扩容：队列深度超过 6 时触发 `scheduler-*` 孵化尝试
+4. 降级策略：扩容失败不终止流程，标记降级并返回重试提示
+
+```bash
+# 队列统计
+./scripts/pangu_task_scheduler.sh stats \
+  --queue-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE.jsonl \
+  --state-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json
+
+# 手动触发容量检查（可选）
+./scripts/ensure_scheduler_capacity.sh \
+  --queue-depth 7 \
+  --threshold 6 \
+  --registry-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_REGISTRY.json \
+  --events-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_EVENTS.jsonl
+```
+
+新增错误码：
+- `queue_full`
+- `queue_dispatch_timeout`
+- `scheduler_spawn_failed`
+- `scheduler_routed`
 
 ## 第零步：加载环境变量并校验
 
@@ -137,8 +259,8 @@ mkdir -p ~/.openclaw/workspaces/innovator
 ### 2.3 安装自学习技能
 
 ```bash
-git clone https://github.com/peterskoett/self-improving-agent.git \
-  ~/.openclaw/workspaces/pangu/skills/self-improving-agent
+clawhub login
+clawhub install --workdir ~/.openclaw/workspaces/pangu self-improving-agent
 
 # 初始化学习日志
 mkdir -p ~/.openclaw/workspaces/pangu/.learnings
@@ -146,6 +268,12 @@ echo "# Learnings Log" > ~/.openclaw/workspaces/pangu/.learnings/LEARNINGS.md
 echo "# Error Log" > ~/.openclaw/workspaces/pangu/.learnings/ERRORS.md
 echo "# Feature Requests" > ~/.openclaw/workspaces/pangu/.learnings/FEATURE_REQUESTS.md
 ```
+
+若出现 `Rate limit exceeded`：
+1. 先执行 `clawhub login` 完成登录；
+2. 再执行安装命令；
+3. 用 `clawhub list --workdir ~/.openclaw/workspaces/pangu` 验证已安装。
+4. 兼容性说明：当前 OpenClaw `skills info` 可能不枚举第三方 ClawHub 技能，验证以 `clawhub list` 与技能目录存在为准。
 
 ### 2.4 IDENTITY.md — 盘古界面标识
 
@@ -439,7 +567,7 @@ openclaw agent --agent innovator --message "请审查以下方案：使用 SQLit
 
 ### 5.4 端到端编排验证（推荐）
 
-验证 `run_brain_trust_review.sh` 的三段式产物（Stage 1/2/3）：
+验证 `run_brain_trust_review.sh` 的四段式产物（Stage 1/2/3/4）：
 
 ```bash
 cd <PROJECT_ROOT>
@@ -451,7 +579,7 @@ source config/brain_trust.env
   --out /tmp/brain_trust_e2e
 ```
 
-检查输出目录（应包含 9 个核心文件）：
+检查输出目录（应包含 Stage4 产物）：
 
 ```bash
 ls -1 /tmp/brain_trust_e2e
@@ -465,13 +593,17 @@ ls -1 /tmp/brain_trust_e2e
 - `critic_cross_review.md`
 - `innovator_cross_review.md`
 - `editor_review.md`
+- `pangu_execution_plan.md`
+- `pangu_execution_report.md`
+- `pangu_execution_raw.json`
+- `pangu_execution_raw.json.stderr`（失败时）
 - `summary_report.md`
 - `structured_summary.json`
 
 可选快速检查：
 
 ```bash
-rg -n "stage2_status|stage3_status|final_recommendation|editor_summary|model_routing_summary" /tmp/brain_trust_e2e/structured_summary.json
+rg -n "stage2_status|stage3_status|stage4_status|final_recommendation|editor_summary|execution_summary|model_routing_summary" /tmp/brain_trust_e2e/structured_summary.json
 
 # 约束检查：结果中不得出现 spark 或其他 OpenAI 版本
 if rg -n "spark|openai-codex/gpt-5\\.[0-24]|openai-codex/gpt-5\\.3-codex-spark" /tmp/brain_trust_e2e/structured_summary.json; then

@@ -1,12 +1,19 @@
 # Technical Brain Trust
 
-Technical Brain Trust is a three-role review orchestration system for OpenClaw:
+Technical Brain Trust is a four-stage review-execution orchestration system for OpenClaw:
 
 - `architect`: architecture feasibility and tradeoffs
 - `critic`: failure/risk stress testing
 - `innovator`: simplification and alternatives
+- `luban`: chief architect for team/interface-agent design artifacts
+- `pangu`: Stage4 execution handoff (plan + implementation trace)
 
-It produces a structured summary and recommendation with explicit routing, diagnostics, and traceability.
+It produces a structured summary, recommendation, and Stage4 execution trace with explicit routing and diagnostics.
+
+Team creation is contract-driven:
+- `team_blueprint.md`
+- `team_agent_contract.json`
+- `team_model_assignment.json`
 
 ## Canonical Deployment Entry
 
@@ -23,11 +30,40 @@ Use [DEPLOYMENT_RELEASE.md](./DEPLOYMENT_RELEASE.md) as the only deployment entr
 3. Run bootstrap:
    - `./scripts/bootstrap_brain_trust.sh --root "$(pwd)" --env-file "$(pwd)/config/brain_trust.env" --record-dir /tmp/brain_trust_bootstrap --non-interactive --local`
 
+E2E output includes:
+- Stage1/2/3 review artifacts
+- Stage4 artifacts: `pangu_execution_plan.md`, `pangu_execution_report.md`, `pangu_execution_raw.json`
+
 ## Release Policy
 
 - Current release metadata: [config/deployment_release.yaml](./config/deployment_release.yaml)
 - Deployment changes: [DEPLOYMENT_CHANGELOG.md](./DEPLOYMENT_CHANGELOG.md)
 - Internal review trace (optional): `review_records/`
+
+## Public Release Branch
+
+This repository uses a split model:
+- `main`: full internal iteration branch
+- `release`: public reproducible package branch
+
+Build/update `release` from `main`:
+
+```bash
+./scripts/build_release_branch.sh --version v1.4.2
+```
+
+Pre-publish safety gate:
+
+```bash
+git switch release
+./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
+```
+
+## 发布机制文档
+
+- [Release Overview](./docs/RELEASE_OVERVIEW.md)
+- [AI Release Protocol](./docs/AI_RELEASE_PROTOCOL.md)
+- [Human Release Runbook](./docs/HUMAN_RELEASE_RUNBOOK.md)
 
 ## Repository Layout
 

@@ -1,0 +1,33 @@
+name: public_release_verify
+
+on:
+  push:
+    branches: ["release"]
+  pull_request:
+    branches: ["release"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bash Syntax
+        run: |
+          bash -n scripts/verify_public_release.sh
+          bash -n scripts/build_release_branch.sh
+          bash -n scripts/check_release_docs_consistency.sh
+
+      - name: Public Release Safety Check
+        run: |
+          ./scripts/verify_public_release.sh \
+            --root . \
+            --manifest release/release_manifest.txt \
+            --enforce-manifest
+
+      - name: Release Docs Consistency
+        run: |
+          ./scripts/check_release_docs_consistency.sh

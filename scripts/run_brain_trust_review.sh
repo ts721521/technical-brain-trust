@@ -5,16 +5,24 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="${ROOT_DIR}/config/brain_trust_config.yaml"
 VALIDATOR="${ROOT_DIR}/scripts/validate_brain_trust_env.sh"
 MODEL_SYNC="${ROOT_DIR}/scripts/sync_brain_trust_models.sh"
+TASK_SCHEDULER="${ROOT_DIR}/scripts/pangu_task_scheduler.sh"
+SCHEDULER_CAPACITY="${ROOT_DIR}/scripts/ensure_scheduler_capacity.sh"
 
 proposal=""
 depth="standard"
 focus=""
 out_dir=""
 use_local="false"
+execute_with_pangu="true"
+pangu_agent="pangu"
+execution_mode="auto"
+execution_timeout_override=""
 
 usage() {
   cat <<USAGE
 Usage: $(basename "$0") --proposal <path> [--depth quick|standard|deep] [--focus "text"] [--out <dir>] [--local]
+       [--execute-with-pangu true|false] [--pangu-agent <id>] [--execution-mode auto]
+       [--execution-timeout-seconds <n>]
 USAGE
 }
 
@@ -142,6 +150,22 @@ while [[ $# -gt 0 ]]; do
       use_local="true"
       shift
       ;;
+    --execute-with-pangu)
+      execute_with_pangu="${2:-}"
+      shift 2
+      ;;
+    --pangu-agent)
+      pangu_agent="${2:-}"
+      shift 2
+      ;;
+    --execution-mode)
+      execution_mode="${2:-}"
+      shift 2
+      ;;
+    --execution-timeout-seconds)
+      execution_timeout_override="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -181,6 +205,20 @@ timeout_per_role_seconds="$(read_config_path "runtime.timeout_per_role_seconds" 
 max_attempts="$(read_config_path "runtime.retry.max_attempts" "2")"
 backoff_seconds="$(read_config_path "runtime.retry.backoff_seconds" "5")"
 min_roles_required="$(read_config_path "runtime.degradation.min_roles_required" "2")"
+execution_enabled_cfg="$(read_config_path "runtime.execution.enabled" "true")"
+execution_executor_cfg="$(read_config_path "runtime.execution.executor_agent" "pangu")"
+execution_timeout_seconds="$(read_config_path "runtime.execution.timeout_seconds" "240")"
+execution_max_attempts="$(read_config_path "runtime.execution.max_attempts" "2")"
+execution_backoff_seconds="$(read_config_path "runtime.execution.backoff_seconds" "5")"
+execution_on_failure="$(read_config_path "runtime.execution.on_failure" "degraded_continue")"
+scheduler_enabled_cfg="$(read_config_path "runtime.scheduler.enabled" "true")"
+scheduler_scope="$(read_config_path "runtime.scheduler.scope" "execution_heavy_only")"
+scheduler_max_inflight="$(read_config_path "runtime.scheduler.max_inflight" "2")"
+scheduler_queue_max="$(read_config_path "runtime.scheduler.queue_max" "50")"
+scheduler_backlog_scale_threshold="$(read_config_path "runtime.scheduler.backlog_scale_threshold" "6")"
+scheduler_dispatch_timeout_seconds="$(read_config_path "runtime.scheduler.dispatch_timeout_seconds" "180")"
+scheduler_retry_max_attempts="$(read_config_path "runtime.scheduler.retry.max_attempts" "2")"
+scheduler_retry_backoff_seconds="$(read_config_path "runtime.scheduler.retry.backoff_seconds" "5")"
 
 weight_feasibility="$(read_config_path "scoring_weights.feasibility" "0.25")"
 weight_robustness="$(read_config_path "scoring_weights.robustness" "0.20")"
@@ -207,6 +245,77 @@ fi
 if ! [[ "${backoff_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   backoff_seconds="5"
 fi
+if ! [[ "${execution_timeout_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  execution_timeout_seconds="240"
+fi
+if ! [[ "${execution_max_attempts}" =~ ^[0-9]+$ ]] || (( execution_max_attempts < 1 )); then
+  execution_max_attempts="2"
+fi
+if ! [[ "${execution_backoff_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  execution_backoff_seconds="5"
+fi
+if ! [[ "${scheduler_max_inflight}" =~ ^[0-9]+$ ]] || (( scheduler_max_inflight < 1 )); then
+  scheduler_max_inflight="2"
+fi
+if ! [[ "${scheduler_queue_max}" =~ ^[0-9]+$ ]] || (( scheduler_queue_max < 1 )); then
+  scheduler_queue_max="50"
+fi
+if ! [[ "${scheduler_backlog_scale_threshold}" =~ ^[0-9]+$ ]] || (( scheduler_backlog_scale_threshold < 1 )); then
+  scheduler_backlog_scale_threshold="6"
+fi
+if ! [[ "${scheduler_dispatch_timeout_seconds}" =~ ^[0-9]+$ ]] || (( scheduler_dispatch_timeout_seconds < 1 )); then
+  scheduler_dispatch_timeout_seconds="180"
+fi
+if ! [[ "${scheduler_retry_max_attempts}" =~ ^[0-9]+$ ]] || (( scheduler_retry_max_attempts < 1 )); then
+  scheduler_retry_max_attempts="2"
+fi
+if ! [[ "${scheduler_retry_backoff_seconds}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  scheduler_retry_backoff_seconds="5"
+fi
+
+case "${execution_enabled_cfg}" in
+  true|false) ;;
+  *) execution_enabled_cfg="true" ;;
+esac
+case "${scheduler_enabled_cfg}" in
+  true|false) ;;
+  *) scheduler_enabled_cfg="true" ;;
+esac
+case "${scheduler_scope}" in
+  execution_heavy_only) ;;
+  *) scheduler_scope="execution_heavy_only" ;;
+esac
+
+if [[ -n "${execution_timeout_override}" ]]; then
+  if [[ "${execution_timeout_override}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    execution_timeout_seconds="${execution_timeout_override}"
+  else
+    echo "invalid --execution-timeout-seconds: ${execution_timeout_override}" >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "${pangu_agent}" ]]; then
+  pangu_agent="${execution_executor_cfg}"
+fi
+
+if [[ -z "${pangu_agent}" ]]; then
+  pangu_agent="pangu"
+fi
+
+if [[ "${execute_with_pangu}" != "true" && "${execute_with_pangu}" != "false" ]]; then
+  echo "invalid --execute-with-pangu: ${execute_with_pangu}" >&2
+  exit 1
+fi
+
+if [[ "${execution_enabled_cfg}" == "false" ]]; then
+  execute_with_pangu="false"
+fi
+
+if [[ "${execution_mode}" != "auto" ]]; then
+  echo "invalid --execution-mode: ${execution_mode} (only auto is supported)" >&2
+  exit 1
+fi
 
 proposal_text="$(cat "${proposal}")"
 original_chars="${#proposal_text}"
@@ -227,6 +336,13 @@ if [[ -z "${out_dir}" ]]; then
   out_dir="${ROOT_DIR}/reviews/${ts}"
 fi
 mkdir -p "${out_dir}"
+
+if [[ "${scheduler_enabled_cfg}" == "true" ]]; then
+  if [[ ! -x "${TASK_SCHEDULER}" || ! -x "${SCHEDULER_CAPACITY}" ]]; then
+    echo "scheduler scripts missing or not executable, fallback to direct Stage4 execution" >&2
+    scheduler_enabled_cfg="false"
+  fi
+fi
 
 if [[ "${BT_SKIP_MODEL_SYNC:-false}" != "true" ]]; then
   if ! "${MODEL_SYNC}" --check-only --record "${out_dir}/model_assignment_check.json"; then
@@ -570,6 +686,625 @@ run_cross_review() {
   run_agent_prompt "${role}" "${prompt}" "${review_file}" "${json_file}" "${routing_file}"
 }
 
+build_pangu_execution_prompt() {
+  local editor_file="$1"
+  local summary_file="$2"
+  local structured_file="$3"
+  local max_len=16000
+  local editor_text summary_text structured_text
+
+  editor_text="$(cat "${editor_file}" 2>/dev/null || true)"
+  summary_text="$(cat "${summary_file}" 2>/dev/null || true)"
+  structured_text="$(cat "${structured_file}" 2>/dev/null || true)"
+
+  if (( ${#editor_text} > max_len )); then
+    editor_text="${editor_text:0:max_len}\n[...已截断...]"
+  fi
+  if (( ${#summary_text} > max_len )); then
+    summary_text="${summary_text:0:max_len}\n[...已截断...]"
+  fi
+  if (( ${#structured_text} > max_len )); then
+    structured_text="${structured_text:0:max_len}\n[...已截断...]"
+  fi
+
+  cat <<PROMPT
+你是执行者 ${pangu_agent}。请基于以下 Stage 3 结果执行落地，并给出可追踪结果。
+
+## Stage 3 总编整合报告
+${editor_text:-[无]}
+
+## 综合摘要
+${summary_text:-[无]}
+
+## 结构化摘要
+${structured_text:-[无]}
+
+## 你的输出要求
+1. 必须包含“执行计划”章节（说明本轮执行范围与理由）。
+2. 必须包含“执行结果”章节（说明已完成项、延后项、可重试项）。
+3. 必须给出一个 JSON 对象，字段如下：
+{
+  "trigger_mode": "auto",
+  "scope_mode": "autonomous",
+  "implemented_items": [],
+  "deferred_items": [],
+  "retryable_items": [],
+  "failure_reason": ""
+}
+4. 执行范围默认自主判断，但必须解释为何这样划分。
+5. 不输出通过/拒绝裁决语义。
+PROMPT
+}
+
+parse_pangu_execution_output() {
+  local raw_json="$1"
+  local plan_file="$2"
+  local report_file="$3"
+  local summary_json="$4"
+
+  python3 - "${raw_json}" "${plan_file}" "${report_file}" "${summary_json}" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+raw_path = Path(sys.argv[1])
+plan_path = Path(sys.argv[2])
+report_path = Path(sys.argv[3])
+summary_path = Path(sys.argv[4])
+
+raw = raw_path.read_text(encoding="utf-8") if raw_path.exists() else ""
+obj = None
+text = ""
+
+try:
+    obj = json.loads(raw)
+except Exception:
+    decoder = json.JSONDecoder()
+    i = 0
+    n = len(raw)
+    while i < n:
+        idx = raw.find("{", i)
+        if idx < 0:
+            break
+        try:
+            cand, end = decoder.raw_decode(raw[idx:])
+            if isinstance(cand, dict):
+                obj = cand
+                break
+            i = idx + max(end, 1)
+        except Exception:
+            i = idx + 1
+
+if isinstance(obj, dict):
+    for key in ("response", "reply", "message", "output", "text"):
+        if isinstance(obj.get(key), str):
+            text = obj[key]
+            break
+    if not text and isinstance(obj.get("payloads"), list):
+        for item in obj["payloads"]:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                text = item["text"]
+                break
+    if not text and isinstance(obj.get("response"), dict):
+        text = obj["response"].get("text", "")
+
+if not text:
+    text = raw.strip()
+if not text:
+    text = "# Empty pangu execution output"
+
+plan_text = ""
+result_text = text
+m = re.search(r"##\s*执行计划(.*?)(##\s*执行结果|\Z)", text, flags=re.S)
+if m:
+    plan_text = m.group(1).strip()
+m2 = re.search(r"##\s*执行结果(.*)$", text, flags=re.S)
+if m2:
+    result_text = m2.group(1).strip()
+
+if not plan_text:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    plan_text = "\n".join(lines[:12]).strip()
+if not result_text:
+    result_text = text
+
+plan_path.write_text("# 盘古执行计划（Stage 4）\n\n" + plan_text + "\n", encoding="utf-8")
+report_path.write_text("# 盘古执行结果（Stage 4）\n\n" + result_text + "\n", encoding="utf-8")
+
+summary = {
+    "trigger_mode": "auto",
+    "scope_mode": "autonomous",
+    "implemented_items": [],
+    "deferred_items": [],
+    "retryable_items": [],
+    "failure_reason": "",
+}
+
+candidate = None
+for raw_json in re.findall(r"```json\s*(\{.*?\})\s*```", text, flags=re.S):
+    try:
+        tmp = json.loads(raw_json)
+        if isinstance(tmp, dict):
+            candidate = tmp
+    except Exception:
+        pass
+
+if candidate is None:
+    decoder = json.JSONDecoder()
+    i = 0
+    while i < len(text):
+        idx = text.find("{", i)
+        if idx < 0:
+            break
+        try:
+            tmp, end = decoder.raw_decode(text[idx:])
+            if isinstance(tmp, dict) and ("implemented_items" in tmp or "deferred_items" in tmp or "retryable_items" in tmp):
+                candidate = tmp
+            i = idx + max(end, 1)
+        except Exception:
+            i = idx + 1
+
+def to_list(v):
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    if isinstance(v, str) and v.strip():
+        return [v.strip()]
+    return []
+
+if isinstance(candidate, dict):
+    summary["trigger_mode"] = str(candidate.get("trigger_mode", "auto") or "auto")
+    summary["scope_mode"] = str(candidate.get("scope_mode", "autonomous") or "autonomous")
+    summary["implemented_items"] = to_list(candidate.get("implemented_items"))
+    summary["deferred_items"] = to_list(candidate.get("deferred_items"))
+    summary["retryable_items"] = to_list(candidate.get("retryable_items"))
+    summary["failure_reason"] = str(candidate.get("failure_reason", "") or "")
+else:
+    for line in text.splitlines():
+        s = line.strip("- ").strip()
+        if "已完成" in s and ":" in s:
+            summary["implemented_items"].append(s.split(":", 1)[1].strip())
+        if ("延后" in s or "待办" in s) and ":" in s:
+            summary["deferred_items"].append(s.split(":", 1)[1].strip())
+
+summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+json_read_field() {
+  local json_file="$1"
+  local key="$2"
+  local default_value="$3"
+  python3 - "${json_file}" "${key}" "${default_value}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+key = sys.argv[2]
+default_value = sys.argv[3]
+
+if not path.exists():
+    print(default_value)
+    raise SystemExit(0)
+
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print(default_value)
+    raise SystemExit(0)
+
+value = data
+for part in key.split("."):
+    if isinstance(value, dict) and part in value:
+        value = value[part]
+    else:
+        print(default_value)
+        raise SystemExit(0)
+
+if value is None:
+    print(default_value)
+elif isinstance(value, bool):
+    print("true" if value else "false")
+else:
+    print(value)
+PY
+}
+
+run_scheduler_enqueue() {
+  local task_hint="$1"
+  local result_json="$2"
+  if ! "${TASK_SCHEDULER}" enqueue \
+    --queue-file "${scheduler_queue_file}" \
+    --state-file "${scheduler_state_file}" \
+    --intent-class "execution_heavy" \
+    --task-hint "${task_hint}" \
+    --queue-max "${scheduler_queue_max}" >"${result_json}" 2>"${result_json}.stderr"; then
+    return 1
+  fi
+  return 0
+}
+
+run_scheduler_dispatch() {
+  local queue_id="$1"
+  local dispatch_target="$2"
+  local scale_action="$3"
+  local result_json="$4"
+
+  local attempts=0
+  while (( attempts < scheduler_retry_max_attempts )); do
+    attempts=$((attempts + 1))
+    if "${TASK_SCHEDULER}" dispatch-once \
+      --queue-file "${scheduler_queue_file}" \
+      --state-file "${scheduler_state_file}" \
+      --queue-id "${queue_id}" \
+      --max-inflight "${scheduler_max_inflight}" \
+      --dispatch-timeout-seconds "${scheduler_dispatch_timeout_seconds}" \
+      --dispatch-target "${dispatch_target}" \
+      --scale-action "${scale_action}" >"${result_json}" 2>"${result_json}.stderr"; then
+      return 0
+    fi
+
+    if (( attempts < scheduler_retry_max_attempts )); then
+      sleep "${scheduler_retry_backoff_seconds}"
+    fi
+  done
+  return 1
+}
+
+run_scheduler_complete() {
+  local queue_id="$1"
+  local result_status="$2"
+  local err_code="$3"
+  "${TASK_SCHEDULER}" complete \
+    --queue-file "${scheduler_queue_file}" \
+    --state-file "${scheduler_state_file}" \
+    --queue-id "${queue_id}" \
+    --result "${result_status}" \
+    --error-code "${err_code}" >/dev/null 2>&1 || true
+}
+
+build_default_scheduling_summary() {
+  local target_file="$1"
+  python3 - "${target_file}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+obj = {
+    "enabled": False,
+    "scope": "execution_heavy_only",
+    "queued": False,
+    "queue_id": "",
+    "queue_depth_at_enqueue": 0,
+    "queue_wait_ms": 0,
+    "dispatch_target": "pangu",
+    "scale_action": "none",
+    "status": "skipped",
+    "error_code": "",
+}
+Path(sys.argv[1]).write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+write_pangu_execution_failure() {
+  local plan_file="$1"
+  local report_file="$2"
+  local summary_json="$3"
+  local stderr_file="$4"
+  local failure_reason="$5"
+  local retry_hint="$6"
+
+  cat >"${plan_file}" <<EOF
+# 盘古执行计划（Stage 4）
+
+执行失败，未生成执行计划。
+EOF
+  cat >"${report_file}" <<EOF
+# 盘古执行结果（Stage 4）
+
+执行失败，可重试。详见：${stderr_file}
+EOF
+  python3 - "${summary_json}" "${failure_reason}" "${retry_hint}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+Path(sys.argv[1]).write_text(
+    json.dumps(
+        {
+            "trigger_mode": "auto",
+            "scope_mode": "autonomous",
+            "implemented_items": [],
+            "deferred_items": [],
+            "retryable_items": [sys.argv[3]],
+            "failure_reason": sys.argv[2],
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+}
+
+run_pangu_execution() {
+  local editor_file="$1"
+  local summary_file="$2"
+  local structured_file="$3"
+  local plan_file="$4"
+  local report_file="$5"
+  local raw_file="$6"
+  local summary_json="$7"
+  local stderr_file="$8"
+  local scheduling_json="$9"
+
+  : >"${stderr_file}"
+  build_default_scheduling_summary "${scheduling_json}"
+
+  local prompt
+  prompt="$(build_pangu_execution_prompt "${editor_file}" "${summary_file}" "${structured_file}")"
+  local target_agent="${pangu_agent}"
+  local queue_id=""
+  local queue_wait_ms="0"
+  local queue_depth_at_enqueue="0"
+  local scale_action="none"
+  local schedule_status="skipped"
+  local schedule_error_code=""
+
+  if [[ "${scheduler_enabled_cfg}" == "true" && "${scheduler_scope}" == "execution_heavy_only" ]]; then
+    local enqueue_json dispatch_json capacity_json
+    enqueue_json="${raw_file}.queue.enqueue.json"
+    dispatch_json="${raw_file}.queue.dispatch.json"
+    capacity_json="${raw_file}.queue.capacity.json"
+
+    if run_scheduler_enqueue "stage4_${depth}" "${enqueue_json}"; then
+      local enqueue_status
+      enqueue_status="$(json_read_field "${enqueue_json}" "status" "error")"
+      if [[ "${enqueue_status}" == "queued" ]]; then
+        queue_id="$(json_read_field "${enqueue_json}" "queue_id" "")"
+        queue_depth_at_enqueue="$(json_read_field "${enqueue_json}" "queue_depth_at_enqueue" "0")"
+        schedule_status="queued"
+      else
+        schedule_status="rejected"
+        schedule_error_code="$(json_read_field "${enqueue_json}" "error_code" "queue_full")"
+      fi
+    else
+      schedule_status="failed"
+      schedule_error_code="queue_enqueue_failed"
+    fi
+
+    if [[ "${schedule_status}" == "queued" ]]; then
+      if "${SCHEDULER_CAPACITY}" \
+        --queue-depth "${queue_depth_at_enqueue}" \
+        --threshold "${scheduler_backlog_scale_threshold}" \
+        --registry-file "${scheduler_registry_file}" \
+        --events-file "${scheduler_events_file}" \
+        --default-target "${pangu_agent}" >"${capacity_json}" 2>"${capacity_json}.stderr"; then
+        target_agent="$(json_read_field "${capacity_json}" "dispatch_target" "${pangu_agent}")"
+        scale_action="$(json_read_field "${capacity_json}" "action" "none")"
+        local capacity_error
+        capacity_error="$(json_read_field "${capacity_json}" "error_code" "")"
+        if [[ "${capacity_error}" == "scheduler_spawn_failed" ]]; then
+          target_agent="${pangu_agent}"
+          scale_action="spawn_scheduler"
+          schedule_error_code="scheduler_spawn_failed"
+        elif [[ "${capacity_error}" == "scheduler_routed" ]]; then
+          schedule_error_code="scheduler_routed"
+        fi
+      else
+        target_agent="${pangu_agent}"
+        scale_action="none"
+        schedule_error_code="scheduler_spawn_failed"
+      fi
+
+      if run_scheduler_dispatch "${queue_id}" "${target_agent}" "${scale_action}" "${dispatch_json}"; then
+        queue_wait_ms="$(json_read_field "${dispatch_json}" "queue_wait_ms" "0")"
+        target_agent="$(json_read_field "${dispatch_json}" "dispatch_target" "${target_agent}")"
+        schedule_status="dispatched"
+      else
+        schedule_status="timeout"
+        schedule_error_code="queue_dispatch_timeout"
+      fi
+    fi
+
+    python3 - "${scheduling_json}" "${scheduler_enabled_cfg}" "${scheduler_scope}" "${queue_id}" "${queue_depth_at_enqueue}" "${queue_wait_ms}" "${target_agent}" "${scale_action}" "${schedule_status}" "${schedule_error_code}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+obj = {
+    "enabled": sys.argv[2].lower() == "true",
+    "scope": sys.argv[3],
+    "queued": bool(sys.argv[4]),
+    "queue_id": sys.argv[4],
+    "queue_depth_at_enqueue": int(sys.argv[5] or 0),
+    "queue_wait_ms": int(float(sys.argv[6] or 0)),
+    "dispatch_target": sys.argv[7] or "pangu",
+    "scale_action": sys.argv[8] or "none",
+    "status": sys.argv[9] or "skipped",
+    "error_code": sys.argv[10] or "",
+}
+Path(sys.argv[1]).write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+    if [[ "${schedule_status}" == "rejected" || "${schedule_status}" == "failed" || "${schedule_status}" == "timeout" ]]; then
+      local fail_reason="${schedule_error_code:-pangu_execution_failed}"
+      local retry_hint="请稍后重试 Stage4（队列调度）"
+      if [[ "${fail_reason}" == "queue_full" ]]; then
+        retry_hint="队列已满，稍后重试：${TASK_SCHEDULER} stats --queue-file ${scheduler_queue_file} --state-file ${scheduler_state_file}"
+      elif [[ "${fail_reason}" == "queue_dispatch_timeout" ]]; then
+        retry_hint="调度超时，建议重试：${TASK_SCHEDULER} drain --queue-file ${scheduler_queue_file} --state-file ${scheduler_state_file}"
+      fi
+      if [[ -n "${queue_id}" ]]; then
+        run_scheduler_complete "${queue_id}" "failed" "${fail_reason}"
+      fi
+      write_pangu_execution_failure "${plan_file}" "${report_file}" "${summary_json}" "${stderr_file}" "${fail_reason}" "${retry_hint}"
+      return 1
+    fi
+  fi
+
+  local cmd=(openclaw agent --agent "${target_agent}" --message "${prompt}" --json)
+  if [[ "${use_local}" == "true" ]]; then
+    cmd+=(--local)
+  fi
+
+  local attempt rc tmp_out tmp_err reason
+  for (( attempt=1; attempt<=execution_max_attempts; attempt++ )); do
+    tmp_out="${raw_file}.attempt${attempt}.out"
+    tmp_err="${raw_file}.attempt${attempt}.err"
+    if run_with_timeout "${execution_timeout_seconds}" "${tmp_out}" "${tmp_err}" "${cmd[@]}"; then
+      mv "${tmp_out}" "${raw_file}"
+      {
+        echo "[attempt ${attempt}/${execution_max_attempts}] status=success agent=${target_agent}"
+        cat "${tmp_err}"
+        echo
+      } >>"${stderr_file}"
+      rm -f "${tmp_err}"
+      parse_pangu_execution_output "${raw_file}" "${plan_file}" "${report_file}" "${summary_json}"
+      if [[ -n "${queue_id}" ]]; then
+        run_scheduler_complete "${queue_id}" "success" ""
+      fi
+      return 0
+    fi
+
+    rc=$?
+    reason="$(categorize_failure_reason "${tmp_err}")"
+    {
+      echo "[attempt ${attempt}/${execution_max_attempts}] status=failed agent=${target_agent} exit_code=${rc} reason=${reason}"
+      cat "${tmp_err}"
+      echo
+    } >>"${stderr_file}"
+    rm -f "${tmp_out}" "${tmp_err}"
+    if (( attempt < execution_max_attempts )); then
+      sleep "${execution_backoff_seconds}"
+    fi
+  done
+
+  if [[ -n "${queue_id}" ]]; then
+    run_scheduler_complete "${queue_id}" "failed" "pangu_execution_failed"
+  fi
+  write_pangu_execution_failure "${plan_file}" "${report_file}" "${summary_json}" "${stderr_file}" "pangu_execution_failed" "重新触发盘古执行并检查模型配额/超时"
+  return 1
+}
+
+apply_stage4_to_reports() {
+  local structured_file="$1"
+  local summary_file="$2"
+  local stage4_status="$3"
+  local summary_json="$4"
+  local scheduling_json="$5"
+  local stage4_failure_reason="$6"
+
+  python3 - "${structured_file}" "${summary_file}" "${stage4_status}" "${pangu_agent}" "${summary_json}" "${scheduling_json}" "${stage4_failure_reason}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+structured_path = Path(sys.argv[1])
+summary_path = Path(sys.argv[2])
+stage4_status = sys.argv[3]
+stage4_executor = sys.argv[4]
+summary_json_path = Path(sys.argv[5])
+scheduling_json_path = Path(sys.argv[6])
+stage4_failure_reason = sys.argv[7]
+
+data = json.loads(structured_path.read_text(encoding="utf-8"))
+
+execution_summary = {
+    "trigger_mode": "auto",
+    "scope_mode": "autonomous",
+    "implemented_items": [],
+    "deferred_items": [],
+    "retryable_items": [],
+    "failure_reason": "",
+}
+if summary_json_path.exists():
+    try:
+        parsed = json.loads(summary_json_path.read_text(encoding="utf-8"))
+        if isinstance(parsed, dict):
+            execution_summary.update(
+                {
+                    "trigger_mode": str(parsed.get("trigger_mode", execution_summary["trigger_mode"])),
+                    "scope_mode": str(parsed.get("scope_mode", execution_summary["scope_mode"])),
+                    "implemented_items": parsed.get("implemented_items", []) if isinstance(parsed.get("implemented_items", []), list) else [],
+                    "deferred_items": parsed.get("deferred_items", []) if isinstance(parsed.get("deferred_items", []), list) else [],
+                    "retryable_items": parsed.get("retryable_items", []) if isinstance(parsed.get("retryable_items", []), list) else [],
+                    "failure_reason": str(parsed.get("failure_reason", execution_summary["failure_reason"])),
+                }
+            )
+    except Exception:
+        pass
+
+if stage4_failure_reason and not execution_summary.get("failure_reason"):
+    execution_summary["failure_reason"] = stage4_failure_reason
+
+scheduling_summary = {
+    "enabled": False,
+    "scope": "execution_heavy_only",
+    "queued": False,
+    "queue_id": "",
+    "queue_depth_at_enqueue": 0,
+    "queue_wait_ms": 0,
+    "dispatch_target": stage4_executor,
+    "scale_action": "none",
+    "status": "skipped",
+    "error_code": "",
+}
+if scheduling_json_path.exists():
+    try:
+        parsed_scheduling = json.loads(scheduling_json_path.read_text(encoding="utf-8"))
+        if isinstance(parsed_scheduling, dict):
+            scheduling_summary.update(parsed_scheduling)
+    except Exception:
+        pass
+
+actual_executor = str(scheduling_summary.get("dispatch_target") or stage4_executor)
+
+if "orchestration" not in data or not isinstance(data["orchestration"], dict):
+    data["orchestration"] = {}
+data["orchestration"]["stage4_status"] = stage4_status
+data["orchestration"]["stage4_executor"] = actual_executor
+data["execution_summary"] = execution_summary
+data["scheduling_summary"] = scheduling_summary
+
+if stage4_status == "failed":
+    data["final_recommendation"] = "建议重审"
+elif stage4_status == "degraded" and data.get("final_recommendation") == "建议采纳":
+    data["final_recommendation"] = "建议优化后采纳"
+
+structured_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+summary = summary_path.read_text(encoding="utf-8")
+stage4_block = (
+    "\n## Stage 4 盘古执行\n"
+    f"- 执行状态：`{stage4_status}`\n"
+    f"- 执行代理：`{actual_executor}`\n"
+    f"- 已完成项：`{len(execution_summary.get('implemented_items', []))}`\n"
+    f"- 延后项：`{len(execution_summary.get('deferred_items', []))}`\n"
+    f"- 可重试项：`{len(execution_summary.get('retryable_items', []))}`\n"
+    f"- 失败原因：`{execution_summary.get('failure_reason') or '无'}`\n"
+    "\n## Stage 4 排程摘要\n"
+    f"- 启用排程：`{'是' if scheduling_summary.get('enabled') else '否'}`\n"
+    f"- 队列状态：`{scheduling_summary.get('status', 'skipped')}`\n"
+    f"- 队列ID：`{scheduling_summary.get('queue_id') or '无'}`\n"
+    f"- 入队深度：`{scheduling_summary.get('queue_depth_at_enqueue', 0)}`\n"
+    f"- 等待时延(ms)：`{scheduling_summary.get('queue_wait_ms', 0)}`\n"
+    f"- 扩容动作：`{scheduling_summary.get('scale_action', 'none')}`\n"
+    f"- 调度错误码：`{scheduling_summary.get('error_code') or '无'}`\n"
+    "\n## Stage 4 产物\n"
+    "- pangu_execution_plan.md\n"
+    "- pangu_execution_report.md\n"
+)
+
+if "\n## Stage 4 盘古执行\n" in summary:
+    summary = summary.split("\n## Stage 4 盘古执行\n", 1)[0].rstrip() + "\n"
+summary = summary.rstrip() + "\n" + stage4_block + "\n"
+summary_path.write_text(summary, encoding="utf-8")
+PY
+}
+
 csv_join() {
   local IFS=','
   echo "$*"
@@ -698,6 +1433,19 @@ stage2_skipped_csv="$(csv_join "${stage2_skipped[@]-}")"
 summary_file="${out_dir}/summary_report.md"
 structured_file="${out_dir}/structured_summary.json"
 editor_file="${out_dir}/editor_review.md"
+pangu_plan_file="${out_dir}/pangu_execution_plan.md"
+pangu_report_file="${out_dir}/pangu_execution_report.md"
+pangu_raw_file="${out_dir}/pangu_execution_raw.json"
+pangu_exec_summary_json="${out_dir}/pangu_execution_summary.json"
+pangu_stderr_file="${out_dir}/pangu_execution_raw.json.stderr"
+scheduling_summary_json="${out_dir}/scheduling_summary.json"
+
+scheduler_memory_dir="${HOME}/.openclaw/workspaces/${pangu_agent}/memory"
+mkdir -p "${scheduler_memory_dir}"
+scheduler_queue_file="${scheduler_memory_dir}/TASK_QUEUE.jsonl"
+scheduler_state_file="${scheduler_memory_dir}/TASK_QUEUE_STATE.json"
+scheduler_registry_file="${scheduler_memory_dir}/SCHEDULER_REGISTRY.json"
+scheduler_events_file="${scheduler_memory_dir}/SCHEDULER_EVENTS.jsonl"
 
 python3 - \
   "$architect_file" "$critic_file" "$innovator_file" \
@@ -1204,6 +1952,8 @@ structured = {
         "stage2_skipped_roles": stage2_skipped_roles,
         "stage3_status": "complete",
         "stage3_editor": "script_editor",
+        "stage4_status": "skipped",
+        "stage4_executor": "",
     },
     "score_summary": score_summary,
     "intent_alignment_summary": {
@@ -1223,6 +1973,26 @@ structured = {
         "p0_conditions": p0_conditions,
         "p1_items": p1_items,
         "unresolved_questions": unresolved_questions,
+    },
+    "execution_summary": {
+        "trigger_mode": "auto",
+        "scope_mode": "autonomous",
+        "implemented_items": [],
+        "deferred_items": [],
+        "retryable_items": [],
+        "failure_reason": "",
+    },
+    "scheduling_summary": {
+        "enabled": False,
+        "scope": "execution_heavy_only",
+        "queued": False,
+        "queue_id": "",
+        "queue_depth_at_enqueue": 0,
+        "queue_wait_ms": 0,
+        "dispatch_target": "pangu",
+        "scale_action": "none",
+        "status": "skipped",
+        "error_code": "",
     },
     "input_guard": {
         "original_chars": int(original_chars),
@@ -1283,7 +2053,7 @@ Path(editor_path).write_text(editor_report, encoding="utf-8")
 summary = f"""# 综合审查摘要
 
 - 执行状态：`{execution_status}`
-- 三段式编排：`Stage1={execution_status}, Stage2={stage2_status}, Stage3=script_editor`
+- 四段式编排：`Stage1={execution_status}, Stage2={stage2_status}, Stage3=script_editor, Stage4=见下文`
 - Stage1 执行方式：`serial`（避免 OpenClaw 全局模型配置覆盖冲突）
 - 综合评分：`{final_score:.2f}`（自动计算，评分状态：`{score_status}`）
 - 最终建议语义：`{final_recommendation}`
@@ -1335,5 +2105,21 @@ summary = f"""# 综合审查摘要
 """
 Path(summary_path).write_text(summary, encoding="utf-8")
 PY
+
+stage4_status="skipped"
+stage4_failure_reason=""
+if [[ "${execute_with_pangu}" == "true" ]]; then
+  if run_pangu_execution "${editor_file}" "${summary_file}" "${structured_file}" "${pangu_plan_file}" "${pangu_report_file}" "${pangu_raw_file}" "${pangu_exec_summary_json}" "${pangu_stderr_file}" "${scheduling_summary_json}"; then
+    stage4_status="complete"
+  else
+    stage4_status="degraded"
+    stage4_failure_reason="pangu_execution_failed"
+    if [[ "${execution_on_failure}" == "fail" ]]; then
+      stage4_status="failed"
+    fi
+  fi
+fi
+
+apply_stage4_to_reports "${structured_file}" "${summary_file}" "${stage4_status}" "${pangu_exec_summary_json}" "${scheduling_summary_json}" "${stage4_failure_reason}"
 
 echo "Review finished: ${out_dir}"

@@ -117,6 +117,24 @@ final_score = feasibility*0.25 + robustness*0.20 + scalability*0.15
 
 ---
 
+## Stage4 执行摘要
+
+- **执行状态**：`complete | degraded | failed | skipped`
+- **执行代理**：`pangu`
+- **触发模式**：`auto`
+- **范围模式**：`autonomous`
+- **已完成项**：...
+- **延后项**：...
+- **可重试项**：...
+- **失败原因（如有）**：...
+- **执行产物**：
+  - `pangu_execution_plan.md`
+  - `pangu_execution_report.md`
+  - `pangu_execution_raw.json`
+  - `pangu_execution_raw.json.stderr`
+
+---
+
 ## 关键发现
 
 ### 架构层面
@@ -196,6 +214,8 @@ final_score = feasibility*0.25 + robustness*0.20 + scalability*0.15
     "stage1_mode": "serial",
     "stage2_status": "complete|degraded|insufficient",
     "stage3_status": "complete|degraded|insufficient",
+    "stage4_status": "complete|degraded|failed|skipped",
+    "stage4_executor": "pangu",
     "stage2_completed_roles": [],
     "stage2_failed_roles": [],
     "stage2_skipped_roles": [],
@@ -273,6 +293,26 @@ final_score = feasibility*0.25 + robustness*0.20 + scalability*0.15
     "p0_conditions": [],
     "p1_items": [],
     "unresolved_questions": []
+  },
+  "execution_summary": {
+    "trigger_mode": "auto",
+    "scope_mode": "autonomous",
+    "implemented_items": [],
+    "deferred_items": [],
+    "retryable_items": [],
+    "failure_reason": ""
+  },
+  "scheduling_summary": {
+    "enabled": true,
+    "scope": "execution_heavy_only",
+    "queued": true,
+    "queue_id": "q_...",
+    "queue_depth_at_enqueue": 1,
+    "queue_wait_ms": 0,
+    "dispatch_target": "pangu|scheduler-*",
+    "scale_action": "none|spawn_scheduler|route_to_scheduler",
+    "status": "skipped|queued|dispatched|rejected|timeout|failed",
+    "error_code": ""
   },
   "input_guard": {
     "original_chars": 0,

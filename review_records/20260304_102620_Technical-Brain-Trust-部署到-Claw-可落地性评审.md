@@ -507,3 +507,103 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 新增统一部署入口脚本 | scripts/bootstrap_brain_trust.sh | 让其他 AI 在新 Claw 环境可一条命令执行预检、注册、同步、回归、E2E 并生成报告。 | 已完成（脚本参数与部署报告契约已实现） | 2026-03-05 |
 | 新增 GitHub CI 验证工作流 | .github/workflows/brain_trust_verify.yml | 把脚本语法与回归测试纳入 PR/主干门禁，防止发布回归。 | 已完成（workflow 已创建，校验项与回归项可执行） | 2026-03-05 |
 | 部署手册入口重定向 | 00_DEPLOY_BRAIN_TRUST.md | 明确标准发布入口，减少执行分歧。 | 已完成（文档顶部已标注以 DEPLOYMENT_RELEASE 为准） | 2026-03-05 |
+
+## 18. 盘古执行闭环落地留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| Stage4 执行阶段落地（默认自动触发） | scripts/run_brain_trust_review.sh | 解决“三段式只审不执”缺口，形成 Stage1/2/3/4 闭环。 | 已完成（回归含正常与 `pangu_fail` 降级路径通过） | 2026-03-05 |
+| Stage4 契约字段写入结构化摘要 | scripts/run_brain_trust_review.sh;03_Review_Report_Template.md | 固化 `orchestration.stage4_status/stage4_executor` 与 `execution_summary` 机读契约。 | 已完成（`structured_summary.json` 含新增字段） | 2026-03-05 |
+| Bootstrap 纳入 pangu 与 Stage4 报告字段 | scripts/bootstrap_brain_trust.sh | 部署报告需可证明 Stage4 链路可用。 | 已完成（report 增加 `agents.required`、`execution_chain.status`、`e2e.stage4_status`） | 2026-03-05 |
+| 环境校验新增 pangu 与 execution 配置约束 | scripts/validate_brain_trust_env.sh;config/brain_trust_config.yaml | 防止缺少执行角色或缺失 runtime.execution 导致运行时失败。 | 已完成（脚本语法通过，键与 agent 检查生效） | 2026-03-05 |
+| 回归脚本新增 Stage4 断言 | scripts/test_run_brain_trust_review_regression.sh | 防止后续变更回退 Stage4 行为。 | 已完成（断言 `stage4_status/execution_summary` 与产物存在） | 2026-03-05 |
+| 环境缺失 pangu 导致校验失败 | scripts/validate_brain_trust_env.sh;scripts/bootstrap_brain_trust.sh | Stage4 启用后 `pangu` 成为硬依赖；需在部署链路中自动纳入。 | 已完成（幂等注册 `pangu` 后 `validate` 通过，bootstrap 报告显示 `agents.required` 包含 `pangu`） | 2026-03-05 |
+| 工作流/宪章/部署文档改为四段式口径 | .agents/workflows/brain_trust_review.md;01_Review_Workflow.md;00_Brain_Trust_Charter.md;00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;README.md;00_START_REVIEW_HERE.md | 消除“文档口径与实现不一致”。 | 已完成（Stage1 串行 + Stage4 自动执行语义统一） | 2026-03-05 |
+| 发布元数据与验收项更新 Stage4 | config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md | 保证跨 Claw 移植时可按同一契约验收。 | 已完成（release 升级 `v1.1.0`，新增 Stage4 验收检查） | 2026-03-05 |
+
+## 19. 盘古执行权限与多层调度落盘留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| pangu agent 级执行权限落盘 | `~/.openclaw/openclaw.json` | 保持 `main` 入口不提权，仅对 `pangu` 开启执行能力，匹配“执行+孵化”职责。 | 已完成（`global tools.profile=messaging`，`pangu.tools.profile=full`） | 2026-03-05 |
+| 审批模式与最小 allowlist 落盘 | `~/.openclaw/exec-approvals.json` | 防止全自动高危放开，同时确保 `clawhub` 操作不被无谓阻塞。 | 已完成（保留审批模式，`agents.pangu.allowlist` 增加 `/opt/homebrew/bin/clawhub`） | 2026-03-05 |
+| 盘古工作区规则改造（执行+孵化+防空转） | `~/.openclaw/workspaces/pangu/AGENTS.md`;`~/.openclaw/workspaces/pangu/SOUL.md`;`~/.openclaw/workspaces/pangu/TOOLS.md` | 修复“盘古只会建议、不直接执行”和“session_status 空转”问题，并固化 scheduler 孵化模板。 | 已完成（文档已落盘，包含审批、SOP、回滚与 anti-loop 规则） | 2026-03-05 |
+| 项目部署文档同步运行策略 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml | 保证“运行配置与仓库文档”一致，便于跨 Claw 1:1 复刻。 | 已完成（新增 runtime topology 与 permission policy，release 升级 `v1.2.0`） | 2026-03-05 |
+| 盘古执行能力实测（本地模式） | OpenClaw runtime（agent:pangu） | 验证盘古已不再是 `sessions_*` 限制工具集，需可直接执行外部命令。 | 已完成（`openclaw agent --agent pangu --local` 实测可调用 `exec` 并成功执行 `clawhub inspect self-improving-agent`；首选模型超时后后补模型成功） | 2026-03-05 |
+| `self-improving-agent` 安装阻塞与恢复指引 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md | 实测安装命令出现 `Rate limit exceeded`，且 `openclaw skills info` 对第三方 ClawHub 技能存在可见性差异。 | 已完成（文档新增 `clawhub login -> install -> clawhub list` 主验证链，并补充兼容性说明） | 2026-03-05 |
+
+## 20. Main 分发中枢与分层记忆治理落地留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| main agent 级执行权限落盘 | `~/.openclaw/openclaw.json` | main 需具备“可执行或可分发”的基础能力，避免只给命令模板。 | 已完成（`main.tools.profile=full`，全局 `tools.profile=messaging` 保持不变） | 2026-03-05 |
+| main 最小 allowlist 落盘 | `~/.openclaw/exec-approvals.json` | 在审批模式下支持 main 执行安装/检查/同步类任务。 | 已完成（`main` 新增 `openclaw/clawhub/git/python3/pip3` 最小条目） | 2026-03-05 |
+| main 路由学习规则固化 | `~/.openclaw/workspace/AGENTS.md`;`~/.openclaw/workspace/SOUL.md`;`~/.openclaw/workspace/TOOLS.md` | 建立“分类执行 + 自动委派 + 路由学习落盘”闭环。 | 已完成（新增 intent 分类、自动分发与 `ROUTING_DECISIONS.jsonl` 记录要求） | 2026-03-05 |
+| 盘古直写增强与审计规则固化 | `~/.openclaw/workspaces/pangu/AGENTS.md`;`~/.openclaw/workspaces/pangu/SOUL.md`;`~/.openclaw/workspaces/pangu/TOOLS.md` | 允许盘古增强 main，同时限制越界并强制留痕。 | 已完成（新增直写白名单、禁止路径和双日志审计要求） | 2026-03-05 |
+| 分层记忆目录初始化 | `~/.openclaw/workspace/memory/*`;`~/.openclaw/workspaces/pangu/memory/*`;`~/.openclaw/workspaces/.scheduler-template/memory/*` | 当前缺少长期记忆层，需建立主共享/角色私有结构。 | 已完成（目录与模板文件已创建） | 2026-03-05 |
+| 新增治理脚本（初始化/压缩/晋升） | `scripts/bootstrap_agent_memory_layers.sh`;`scripts/route_learning_compact.sh`;`scripts/promote_skill_from_pangu_to_main.sh` | 让分层记忆和灰度晋升可执行、可重复、可审计。 | 已完成（脚本创建并设置可执行权限） | 2026-03-05 |
+| 发布文档与元数据同步 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml | 保证跨 Claw 部署口径一致并可复刻。 | 已完成（release 升级 `v1.3.0`，新增 main mixed router 与 memory governance 契约） | 2026-03-05 |
+
+## 21. Main 委派可达性补丁留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增委派可达性契约 | `~/.openclaw/workspace/AGENTS.md`;`~/.openclaw/workspace/TOOLS.md` | 修复“会分配但不一定送达”缺口，固化 `delegate_preflight` 与 `send->spawn->resend`。 | 已完成（新增失败码与重任务降级策略，不再要求 main 强兜底） | 2026-03-05 |
+| 路由日志结构扩展 | `~/.openclaw/workspace/memory/ROUTING_DECISIONS.jsonl`;`scripts/route_learning_compact.sh` | 提升委派问题可诊断性，统计恢复率与不可达频次。 | 已完成（脚本可输出 delegate success/recovery/unreachable 指标） | 2026-03-05 |
+| 新增委派可靠性验证脚本 | `scripts/verify_main_delegate_reliability.sh` | 把委派三场景（正常/会话缺失恢复/不可达降级）转为可重复验收。 | 已完成（脚本输出 `delegate_reliability_report.json`，默认 mock 可稳定通过） | 2026-03-05 |
+| 部署与发布元数据同步 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md | 保障跨 Claw 复刻时策略、验收、版本一致。 | 已完成（release 升级 `v1.3.1`） | 2026-03-05 |
+
+## 22. 盘古突发任务排程补丁留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增 execution_heavy 队列排程契约 | config/brain_trust_config.yaml;scripts/run_brain_trust_review.sh | 解决“突发任务下仅委派无排程”缺口，补齐 `max_inflight/queue_max/backlog_scale_threshold` 等运行约束。 | 已完成（配置已生效，Stage4 接入调度入口） | 2026-03-05 |
+| 新增队列调度脚本 | scripts/pangu_task_scheduler.sh | 提供 `enqueue/dispatch-once/complete/drain/stats` 原子调度能力，并基于文件锁保证并发安全。 | 已完成（脚本创建并通过语法检查） | 2026-03-05 |
+| 新增扩容脚本 | scripts/ensure_scheduler_capacity.sh | 当积压超过阈值时自动复用/孵化 `scheduler-*`，并输出路由动作与失败码。 | 已完成（脚本创建并通过语法检查） | 2026-03-05 |
+| Stage4 输出新增排程摘要 | scripts/run_brain_trust_review.sh;03_Review_Report_Template.md | 让调度行为可审计，结构化输出 `scheduling_summary`（队列ID、等待时延、调度目标、扩容动作）。 | 已完成（`structured_summary.json` 字段已补齐） | 2026-03-05 |
+| 路由学习指标扩展 | scripts/route_learning_compact.sh | 增加排程视角统计（排队占比、平均等待、扩容次数、路由次数）。 | 已完成（脚本输出新增 scheduler_metrics） | 2026-03-05 |
+| 运行时规则与发布文档同步 | ~/.openclaw/workspace/AGENTS.md;~/.openclaw/workspace/TOOLS.md;~/.openclaw/workspaces/pangu/AGENTS.md;00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md | 保证“运行策略、实施手册、发布契约”一致，便于跨环境复刻。 | 已完成（release 升级 `v1.4.0`） | 2026-03-05 |
+
+## 23. GitHub 发布隔离与可复制交付留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 引入双分支发布模型（main/release） | README.md;DEPLOYMENT_RELEASE.md | 防止真实迭代与公开发布互相污染，保证公开版本稳定可复制。 | 已完成（文档明确分支职责与发布流程） | 2026-03-05 |
+| 新增发布白名单清单 | release/release_manifest.txt | 固化“哪些文件可进入 release”规则，避免夹带本地运维细节。 | 已完成（manifest 已覆盖公开必要文件） | 2026-03-05 |
+| 新增公开安全检查脚本 | scripts/verify_public_release.sh | 提交前阻断密钥模式、个人绝对路径、运行态污染文件。 | 已完成（脚本创建并纳入校验链） | 2026-03-05 |
+| 新增 release 分支构建脚本 | scripts/build_release_branch.sh | 从 main 自动生成 release，保证发布可重复、可审计、可打标签。 | 已完成（支持版本号、dry-run、报告输出） | 2026-03-05 |
+| 新增 release 分支 CI 门禁 | .github/workflows/public_release_verify.yml | 对 release 的 push/PR 强制执行公开安全检查，失败阻断合并。 | 已完成（workflow 已创建） | 2026-03-05 |
+| 发布元数据与版本同步 | config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md | 把新发布机制纳入契约真源与版本演进记录。 | 已完成（release_version 更新为 v1.4.1） | 2026-03-05 |
+
+## 24. AI可感知发布机制与人类手册补强留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增 AI 发布协议文档 | docs/AI_RELEASE_PROTOCOL.md | 让其他 AI 能直接识别角色分工、阻断条件与发布命令。 | 已完成（协议含角色、流程、阻断条件、输出契约） | 2026-03-05 |
+| 新增人类发布 Runbook | docs/HUMAN_RELEASE_RUNBOOK.md | 给人类维护者提供单页可执行步骤与故障恢复路径。 | 已完成（含触发条件、5步流程、回滚与验收清单） | 2026-03-05 |
+| 新增发布导航页 | docs/RELEASE_OVERVIEW.md | 提供 AI 与人类统一入口，降低机制理解成本。 | 已完成（含总览图、索引、Quick Path） | 2026-03-05 |
+| 新增文档一致性校验脚本 | scripts/check_release_docs_consistency.sh | 防止发布文档漂移，保证版本与命令一致。 | 已完成（脚本可执行且纳入验收链） | 2026-03-05 |
+| CI 增加文档一致性门禁 | .github/workflows/public_release_verify.yml | release 分支不仅校验安全，还校验机制可理解。 | 已完成（新增语法与执行步骤） | 2026-03-05 |
+| release 白名单纳入 docs | release/release_manifest.txt | 确保公开分支包含 AI 协议与人类手册。 | 已完成（manifest 已追加 docs 路径） | 2026-03-05 |
+| 元数据与版本同步到 v1.4.2 | config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md;DEPLOYMENT_RELEASE.md;README.md | 保证发布版本、文档入口、验收命令一致。 | 已完成（版本与命令已同步） | 2026-03-05 |
+
+## 25. 静态矩阵移除与团队接口代理契约上线留痕（2026-03-05）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 静态模型矩阵从部署口径移除 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md | 模型分配改为架构阶段动态输出物，避免部署层写死。 | 已完成（文档新增“动态输出契约”，无静态团队矩阵要求） | 2026-03-05 |
+| 新增 LuBan 团队输出模板 | roles/luban/AGENTS.md;roles/luban/TOOLS.md;roles/luban/templates/* | 固化团队创建必须产出 3 文件（蓝图、Agent 契约、模型分配）。 | 已完成（模板已落盘） | 2026-03-05 |
+| 新增团队契约校验脚本 | scripts/validate_team_contract.sh | 缺文件或 schema 不合法时阻断实施。 | 已完成（脚本新增并可执行） | 2026-03-05 |
+| 新增 LuBan 初始化脚本 | scripts/bootstrap_luban_role.sh | 统一创建鲁班工作区、模板和初始化报告，保证可复刻。 | 已完成（脚本新增并接入 bootstrap） | 2026-03-05 |
+| bootstrap 链路纳入 LuBan 与契约校验 | scripts/bootstrap_brain_trust.sh | 部署阶段即验证“接口代理”契约，防止后置风险。 | 已完成（deploy report 增加 `luban` 与 `team_contract_validation` 状态） | 2026-03-05 |
+| 发布元数据纳入契约与脚本检查 | config/deployment_release.yaml;release/release_manifest.txt | 保证 release 产物包含 LuBan 规则与校验脚本。 | 已完成（required_scripts/acceptance_checks/manifest 已更新） | 2026-03-05 |
+
+## 26. 质量自把关与持续提升补充留痕（2026-03-06）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增质量自把关原则（QSGP）与持续提升原则（QEL） | 00_Brain_Trust_Charter.md | 将“团队自治”扩展为“质量自治”，避免交付无门禁、无责任闭环。 | 已完成（新增 5.5 条款，明确三关门禁与 blocked 规则） | 2026-03-06 |
+| 工作流新增 Stage 5 质量门禁与改进回写 | 01_Review_Workflow.md | 让 Stage4 后有质量复核与周期改进出口，形成可持续提升闭环。 | 已完成（Stage 5、失败处理与产物定义已落盘） | 2026-03-06 |
+| 审查入口新增质量检查项 | 00_START_REVIEW_HERE.md | 审查阶段强制检查 `quality_gate_report` 与 `quality_improvement_log`，防止遗漏。 | 已完成（检查清单新增 QSGP/QEL 条目） | 2026-03-06 |
+| 发布说明补充质量闭环契约 | DEPLOYMENT_RELEASE.md | 在发布级文档中同步“质量自把关 + 持续改进”设计约束，统一口径。 | 已完成（新增 Quality Closed-Loop Contract 节） | 2026-03-06 |
+| 元数据新增质量契约产物与验收检查 | config/deployment_release.yaml | 将质量契约转为机器可读项，支持后续自动化校验与追踪。 | 已完成（新增 quality_contract_outputs/constraints 与 rg 验收项） | 2026-03-06 |
