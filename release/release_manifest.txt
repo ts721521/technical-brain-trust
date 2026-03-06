@@ -75,3 +75,4 @@ scripts/tests/test_bootstrap_agent_sessions.sh
 scripts/tests/test_quality_evolution_compact.sh
 scripts/tests/test_route_learning_compact.sh
 scripts/tests/test_mvp_team_closure.sh
+scripts/tests/test_verify_public_release.sh

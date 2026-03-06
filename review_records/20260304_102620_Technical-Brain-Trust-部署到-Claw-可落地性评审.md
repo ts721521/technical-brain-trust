@@ -841,3 +841,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 管理层摘要接入趋势结论 | `scripts/runtime_health_audit.sh` | 让“单页摘要”直接体现趋势，不用手工交叉比对多份报告。 | 已完成（新增 `Runtime trend` 行） | 2026-03-07 |
 | 回归测试补齐趋势产物与结构断言 | `scripts/tests/test_runtime_health_audit.sh` | 防止趋势功能回归丢失。 | 已完成（断言 trend 状态和趋势报告文件） | 2026-03-07 |
 | 文档/发布契约同步 | `README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md` | 保证新产物可见、可验收、可发布。 | 已完成（版本推进 `v1.6.11`） | 2026-03-07 |
+
+## 47. 巡检后修复收口留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 公开发布校验流程纠偏 | `README.md`;`DEPLOYMENT_RELEASE.md`;`docs/AI_RELEASE_PROTOCOL.md`;`docs/HUMAN_RELEASE_RUNBOOK.md`;`docs/RELEASE_OVERVIEW.md`;`scripts/check_release_docs_consistency.sh` | 巡检发现把 `--enforce-manifest` 误写成 main 也可执行，实际会在开发分支产生误报。 | 已完成（文档明确 main 只跑非严格校验，strict 只在 release） | 2026-03-07 |
+| 公共发布校验误报收敛 | `scripts/verify_public_release.sh`;`scripts/tests/test_verify_public_release.sh` | 巡检发现凭证正则对命令替换/变量展开误报，影响可用性。 | 已完成（逐文件扫描 + 收窄字面量凭证匹配；单测通过） | 2026-03-07 |
+| 验收门禁收紧 | `scripts/run_brain_trust_review.sh`;`scripts/test_run_brain_trust_review_regression.sh` | 巡检发现意图偏差和编辑层 P0 条件未必阻断最终验收，存在“假通过”风险。 | 已完成（新增 misalignment/P0 条件/建议重审三类阻断；回归通过） | 2026-03-07 |
+| QMD 同步健康纳入日报 | `scripts/runtime_health_audit.sh`;`scripts/tests/test_runtime_health_audit.sh` | 巡检发现知识链路可能退化，但日报未显式暴露。 | 已完成（新增 `qmd_sync` 字段，退化时写入 P1） | 2026-03-07 |
+| CI/发布契约补齐新测试 | `.github/workflows/brain_trust_verify.yml`;`.github/workflows/public_release_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml` | 防止本轮修复只停留在本地，后续发布回归。 | 已完成（版本推进 `v1.6.12`） | 2026-03-07 |

@@ -41,8 +41,10 @@ check_core_commands() {
   local label="$2"
 
   contains_literal "${file}" "./scripts/build_release_branch.sh --version" || add_failure "${label} missing command: build_release_branch"
+  contains_literal "${file}" "./scripts/verify_public_release.sh --root ." || add_failure "${label} missing command: verify_public_release_main"
   contains_literal "${file}" "git switch release" || add_failure "${label} missing command: git switch release"
-  contains_literal "${file}" "./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest" || add_failure "${label} missing command: verify_public_release"
+  contains_literal "${file}" "./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest" || add_failure "${label} missing command: verify_public_release_release"
+  contains_literal "${file}" "不要在 main 直接执行 --enforce-manifest" || add_failure "${label} missing warning: enforce-manifest-main"
 }
 
 check_links_exist() {

@@ -51,15 +51,21 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.11
+./scripts/build_release_branch.sh --version v1.6.12
 ```
 
 Pre-publish safety gate:
 
 ```bash
+# on main (non-enforced)
+./scripts/verify_public_release.sh --root .
+
+# on release snapshot/branch only
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ```
+
+注意：不要在 main 直接执行 --enforce-manifest。
 
 ## 发布机制文档
 

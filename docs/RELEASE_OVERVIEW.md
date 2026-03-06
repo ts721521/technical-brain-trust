@@ -1,4 +1,4 @@
-# Release Overview (v1.6.11)
+# Release Overview (v1.6.12)
 
 ## 1. 机制总览（文字图）
 
@@ -21,6 +21,7 @@
 
 ```bash
 # on main
+./scripts/verify_public_release.sh --root .
 ./scripts/build_release_branch.sh --version vX.Y.Z
 
 # on release
@@ -30,6 +31,8 @@ git switch release
 
 git push origin release --tags
 ```
+
+注意：不要在 main 直接执行 --enforce-manifest。
 
 ## 4. 分工建议
 

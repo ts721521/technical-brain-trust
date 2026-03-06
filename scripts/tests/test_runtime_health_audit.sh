@@ -112,14 +112,24 @@ export BT_TEAM_ID="team-brain-trust"
 export BT_QUEUE_STATE_FILE="${tmp_dir}/queue_state.json"
 export BT_RUN_ROUTE_COMPACT="false"
 
+yyyymm="$(date +%Y%m)"
+run_date="$(date +%Y%m%d)"
+qmd_dir="${BT_DOCS_ROOT}/${BT_TEAM_ID}/custom-learning/${yyyymm}"
+mkdir -p "${qmd_dir}"
+cat >"${qmd_dir}/qmd_sync_report-${run_date}-040013.json" <<'JSON'
+{
+  "generated_at": "2026-03-07T04:00:13+08:00",
+  "sync_status": "degraded",
+  "degraded_reason": "Learning artifacts path not in QMD collection monitoring"
+}
+JSON
+
 cat >"${BT_QUEUE_STATE_FILE}" <<'JSON'
 {"items":[{"status":"failed"},{"status":"queued"}]}
 JSON
 
 "${SCRIPT}" --slot-time 050000 --notify true >/dev/null
 
-yyyymm="$(date +%Y%m)"
-run_date="$(date +%Y%m%d)"
 base="${BT_DOCS_ROOT}/${BT_TEAM_ID}/ops/${yyyymm}"
 
 for f in \
@@ -156,6 +166,8 @@ assert obj['backlog_sync']['status'] == 'generated'
 assert obj['backlog_sync']['summary']['created_count'] >= 1
 assert obj['task_ledger_audit']['status'] == 'generated'
 assert obj['trend']['status'] in ('no_baseline','stable','improving','worsening','mixed')
+assert obj['qmd_sync']['status'] == 'degraded'
+assert any("QMD 同步状态=degraded" in x for x in (obj.get('improvement_backlog', {}).get('p1', []) or []))
 assert 'improvement_backlog' in obj
 PY
 

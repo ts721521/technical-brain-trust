@@ -1508,11 +1508,33 @@ if structured_path.exists():
 orchestration = data.get("orchestration", {}) if isinstance(data, dict) else {}
 execution_proof = data.get("execution_proof", {}) if isinstance(data, dict) else {}
 execution_summary = data.get("execution_summary", {}) if isinstance(data, dict) else {}
+intent_alignment = data.get("intent_alignment_summary", {}) if isinstance(data, dict) else {}
+editor_summary = data.get("editor_summary", {}) if isinstance(data, dict) else {}
 
 stage4_status = str(orchestration.get("stage4_status", "unknown") or "unknown")
 proof_passed = bool(execution_proof.get("passed", False))
+stage2_status = str(orchestration.get("stage2_status", "unknown") or "unknown")
+final_recommendation = str(data.get("final_recommendation", "") or "")
+misalignment_found = bool(intent_alignment.get("misalignment_found", False))
+p0_conditions = editor_summary.get("p0_conditions", []) if isinstance(editor_summary, dict) else []
+if not isinstance(p0_conditions, list):
+    p0_conditions = []
 
-status = "pass" if stage4_status == "complete" and proof_passed else "blocked"
+blocked_reasons = []
+if stage4_status != "complete":
+    blocked_reasons.append("stage4_status_not_complete")
+if not proof_passed:
+    blocked_reasons.append("execution_proof_not_passed")
+if stage2_status == "insufficient":
+    blocked_reasons.append("stage2_insufficient")
+if final_recommendation == "建议重审":
+    blocked_reasons.append("final_recommendation_recheck_required")
+if misalignment_found:
+    blocked_reasons.append("intent_alignment_misalignment_found")
+if len(p0_conditions) > 0:
+    blocked_reasons.append("editor_p0_conditions_not_empty")
+
+status = "pass" if not blocked_reasons else "blocked"
 evidence = []
 for file_name in (
     "pangu_execution_plan.md",
@@ -1531,7 +1553,9 @@ for item in execution_summary.get("retryable_items", []) if isinstance(execution
         reopen_actions.append(item.strip())
 
 if status == "blocked" and not reopen_actions:
-    reopen_actions.append("根据错误码与执行日志补齐产物后重跑 Stage4 与验收。")
+    if blocked_reasons:
+        reopen_actions.append("验收阻断原因：" + ", ".join(blocked_reasons))
+    reopen_actions.append("根据阻断原因修复后重跑 Stage2/Stage4 与验收。")
 
 payload = {
     "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -1540,6 +1564,10 @@ payload = {
     "reviewer": "braintrust_compliance",
     "status": status,
     "stage4_status": stage4_status,
+    "stage2_status": stage2_status,
+    "final_recommendation": final_recommendation,
+    "misalignment_found": misalignment_found,
+    "blocked_reasons": blocked_reasons,
     "evidence": evidence,
     "reopen_actions": reopen_actions,
 }
@@ -1586,15 +1614,30 @@ if isinstance(structured.get("orchestration"), dict):
 if isinstance(structured.get("execution_proof"), dict):
     execution_proof_ok = bool(structured["execution_proof"].get("passed", False))
 
+intent_alignment = structured.get("intent_alignment_summary", {}) if isinstance(structured, dict) else {}
+editor_summary = structured.get("editor_summary", {}) if isinstance(structured, dict) else {}
+misalignment_found = bool(intent_alignment.get("misalignment_found", False)) if isinstance(intent_alignment, dict) else False
+p0_conditions = editor_summary.get("p0_conditions", []) if isinstance(editor_summary, dict) else []
+if not isinstance(p0_conditions, list):
+    p0_conditions = []
+final_recommendation = str(structured.get("final_recommendation", "") or "")
+
 acceptance_status = str(acceptance.get("status", "") or "")
 
-precheck_pass = len(parse_errors) == 0
+precheck_pass = len(parse_errors) == 0 and not misalignment_found and len(p0_conditions) == 0 and final_recommendation != "建议重审"
 execution_pass = stage4_status == "complete" and execution_proof_ok
 release_pass = acceptance_status == "pass"
 
 blocked_reasons = []
 if not precheck_pass:
-    blocked_reasons.append("parse_diagnostics.errors not empty")
+    if parse_errors:
+        blocked_reasons.append("parse_diagnostics.errors not empty")
+    if misalignment_found:
+        blocked_reasons.append("intent alignment misalignment found")
+    if p0_conditions:
+        blocked_reasons.append("editor p0_conditions not empty")
+    if final_recommendation == "建议重审":
+        blocked_reasons.append("final_recommendation is 建议重审")
 if not execution_pass:
     blocked_reasons.append("stage4 execution proof not passed")
 if not release_pass:

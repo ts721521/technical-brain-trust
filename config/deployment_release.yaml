@@ -1,4 +1,4 @@
-release_version: "v1.6.11"
+release_version: "v1.6.12"
 openclaw_compatibility: "2026.3.2"
 openai_policy:
   type: "fixed"
@@ -109,6 +109,7 @@ required_scripts:
   - "scripts/tests/test_quality_evolution_compact.sh"
   - "scripts/tests/test_route_learning_compact.sh"
   - "scripts/tests/test_mvp_team_closure.sh"
+  - "scripts/tests/test_verify_public_release.sh"
 acceptance_checks:
   - "bash -n scripts/run_brain_trust_review.sh"
   - "bash -n scripts/validate_brain_trust_env.sh"
@@ -147,8 +148,9 @@ acceptance_checks:
   - "bash -n scripts/tests/test_quality_evolution_compact.sh"
   - "bash -n scripts/tests/test_route_learning_compact.sh"
   - "bash -n scripts/tests/test_mvp_team_closure.sh"
+  - "bash -n scripts/tests/test_verify_public_release.sh"
   - "scripts/verify_main_delegate_reliability.sh"
-  - "scripts/build_release_branch.sh --version v1.6.11 --dry-run --allow-dirty"
+  - "scripts/build_release_branch.sh --version v1.6.12 --dry-run --allow-dirty"
   - "scripts/check_release_docs_consistency.sh"
   - "scripts/validate_docs_path_policy.sh --docs-root /Volumes/TB512/3_ClawDocs --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603"
   - "scripts/register_artifact_index.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --artifact evidence --topic sample --path /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/summary_report.md --producer-script run_brain_trust_review.sh --status generated"
@@ -167,6 +169,7 @@ acceptance_checks:
   - "scripts/tests/test_quality_evolution_compact.sh"
   - "scripts/tests/test_route_learning_compact.sh"
   - "scripts/tests/test_mvp_team_closure.sh"
+  - "scripts/tests/test_verify_public_release.sh"
   - "scripts/check_interface_bindings.sh"
   - "scripts/runtime_health_audit.sh --slot-time 050000 --notify false"
   - "test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/runtime_executive_summary-$(date +%Y%m%d)-050000.md"

@@ -32,7 +32,7 @@
 `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/artifact_index.jsonl`
 
 台账写入必须调用：
-`/Users/tianshuai/Documents/NewWord/Technical_Brain_Trust/scripts/register_artifact_index.sh`
+`./scripts/register_artifact_index.sh`
 并固定使用 `--artifact custom-learning`。
 
 禁止写入自定义 `run_id` 聚合行；必须逐产物写标准字段。

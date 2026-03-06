@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.11
+# Brain Trust Deployment Release v1.6.12
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.11`
+- Release version: `v1.6.12`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,11 +165,19 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.11
+# on main (non-enforced)
+./scripts/verify_public_release.sh --root .
+
+# build release snapshot
+./scripts/build_release_branch.sh --version v1.6.12
+
+# on release snapshot/branch only
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
 ```
+
+注意：不要在 main 直接执行 --enforce-manifest。
 
 Push public branch and tags:
 
@@ -227,7 +235,8 @@ git push origin release --tags
 2. Policy and env validation
 - `source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh`
 - `scripts/validate_team_contract.sh --dir roles/luban/templates`
-- `scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
+- `./scripts/verify_public_release.sh --root .`
+- `git switch release && ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
 - `scripts/check_release_docs_consistency.sh`
 - `scripts/validate_docs_path_policy.sh --docs-root /Volumes/TB512/3_ClawDocs --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)`
 - `scripts/check_interface_bindings.sh`

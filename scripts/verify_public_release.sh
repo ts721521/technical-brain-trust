@@ -91,11 +91,18 @@ check_pattern() {
   local pattern="$1"
   local label="$2"
   local out_file="${TMP_DIR}/${label}.txt"
-  local -a rg_cmd=(rg -n --hidden --no-ignore-vcs -I -g '!.git/*')
-  if [[ "${label}" == "absolute_user_path" || "${label}" == "absolute_home_path" ]]; then
-    rg_cmd+=(-g '!scripts/verify_public_release.sh')
-  fi
-  if "${rg_cmd[@]}" "${pattern}" "${ROOT_DIR}" >"${out_file}" 2>/dev/null; then
+  : >"${out_file}"
+  while IFS= read -r rel; do
+    [[ -z "${rel}" ]] && continue
+    [[ "${rel}" == ".git" ]] && continue
+    if [[ "${label}" == "absolute_user_path" || "${label}" == "absolute_home_path" ]]; then
+      [[ "${rel}" == "scripts/verify_public_release.sh" ]] && continue
+    fi
+    local abs="${ROOT_DIR}/${rel}"
+    [[ -f "${abs}" ]] || continue
+    rg -n --no-ignore-vcs -I "${pattern}" "${abs}" >>"${out_file}" 2>/dev/null || true
+  done <"${tracked_file_list_file}"
+  if [[ -s "${out_file}" ]]; then
     while IFS= read -r line; do
       record_failure "${label}: ${line}"
     done <"${out_file}"
@@ -104,7 +111,9 @@ check_pattern() {
 
 check_pattern 'sk-[A-Za-z0-9]{20,}' 'secret_openai_style'
 check_pattern 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' 'private_key_block'
-check_pattern '(?i)(api[_-]?key|token|password|secret)\s*[:=]\s*["\x27][^"\x27]{8,}["\x27]' 'hardcoded_credential_like'
+# Literal credential detector: keep this narrow to avoid false positives on
+# command substitution or variable expansion (for example token="$(...)" / "${TOKEN}").
+check_pattern '(?i)(api[_-]?key|token|password|secret)\s*[:=]\s*["\x27][A-Za-z0-9._~+/=:@-]{8,}["\x27]' 'hardcoded_credential_like'
 
 # 3) Personal absolute path leakage and local auth-profile copy hints
 check_pattern '/Users/[A-Za-z0-9._-]+/' 'absolute_user_path'

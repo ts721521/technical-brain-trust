@@ -204,6 +204,25 @@ if [[ "${mode}" == "parse_error_critic" && "${agent}" == "critic" ]]; then
   exit 0
 fi
 
+if [[ "${mode}" == "misalignment_critic" && "${agent}" == "critic" ]]; then
+  emit_json_response "$(cat <<'MD'
+## 批判者审查
+```json
+{
+  "role": "critic",
+  "scores": {"feasibility": 8, "robustness": 7, "risk": 4},
+  "top_findings": ["f2"],
+  "top_suggestions": ["s2"],
+  "intent_alignment": {"misalignment_found": true, "evidence": "scope drift", "correction": "narrow scope"},
+  "complexity_reduction": {"reduction_required": true, "items": ["简化A"], "rationale": ""},
+  "opensource_validation": []
+}
+```
+MD
+)"
+  exit 0
+fi
+
 if [[ "${mode}" == "pangu_fail" && "${agent}" == "pangu" ]]; then
   echo "simulated pangu execution timeout" >&2
   exit 124
@@ -386,6 +405,13 @@ run_case "parse_error_critic" "${short_proposal}" "${out_parse}"
 assert_json "${out_parse}/structured_summary.json" "len(data['parse_diagnostics']['errors']) >= 1"
 assert_json "${out_parse}/structured_summary.json" "'critic' in data['parse_diagnostics']['failed_roles']"
 assert_json "${out_parse}/structured_summary.json" "data['final_score'] > 0"
+
+out_misalignment="${tmp_dir}/out_misalignment"
+run_case "misalignment_critic" "${short_proposal}" "${out_misalignment}"
+assert_json "${out_misalignment}/structured_summary.json" "data['intent_alignment_summary']['misalignment_found'] is True"
+assert_json "${out_misalignment}/structured_summary.json" "len(data['editor_summary']['p0_conditions']) >= 1"
+assert_json "${out_misalignment}/acceptance_report.json" "data['status'] == 'blocked'"
+assert_json "${out_misalignment}/quality_gate_report.json" "data['final_quality_status'] == 'blocked'"
 
 out_long="${tmp_dir}/out_long"
 run_case "normal" "${long_proposal}" "${out_long}"

@@ -479,6 +479,29 @@ if isinstance(status_agents, dict):
 
 model_drift_count = sum(1 for x in drift_items if x["drift"])
 
+# QMD sync health (latest report in custom-learning/<yyyymm>)
+team_root = runtime_json_path.parents[2] if len(runtime_json_path.parents) >= 3 else runtime_json_path.parent
+yyyymm = runtime_json_path.parent.name
+qmd_dir = team_root / "custom-learning" / yyyymm
+qmd_reports = sorted(qmd_dir.glob("qmd_sync_report-*.json"))
+qmd_summary = {
+    "status": "missing",
+    "report_json": "",
+    "degraded_reason": "",
+    "generated_at": "",
+}
+if qmd_reports:
+    latest_qmd = qmd_reports[-1]
+    qmd_summary["report_json"] = str(latest_qmd)
+    try:
+        qmd_data = json.loads(latest_qmd.read_text(encoding="utf-8"))
+        qmd_summary["status"] = str(qmd_data.get("sync_status", "unknown") or "unknown")
+        qmd_summary["degraded_reason"] = str(qmd_data.get("degraded_reason", "") or "")
+        qmd_summary["generated_at"] = str(qmd_data.get("generated_at", "") or "")
+    except Exception as exc:
+        qmd_summary["status"] = "parse_failed"
+        qmd_summary["degraded_reason"] = str(exc)
+
 p0_items = []
 p1_items = []
 
@@ -503,6 +526,12 @@ if bootstrap_pending_actionable:
     )
 if warn > 0:
     p1_items.append(f"security warn={warn}，建议后续收敛。")
+if qmd_summary["status"] in ("degraded", "failed", "parse_failed"):
+    reason = qmd_summary.get("degraded_reason", "")
+    if reason:
+        p1_items.append(f"QMD 同步状态={qmd_summary['status']}，原因：{reason}。")
+    else:
+        p1_items.append(f"QMD 同步状态={qmd_summary['status']}，需补齐学习产物索引链路。")
 
 runtime_report = {
     "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -542,6 +571,7 @@ runtime_report = {
         "pending_agents_actionable": bootstrap_pending_actionable,
     },
     "task_ledger_summary": team_summaries,
+    "qmd_sync": qmd_summary,
     "improvement_backlog": {
         "p0": p0_items,
         "p1": p1_items,
@@ -889,7 +919,7 @@ if audit_status == "generated" and audit_report_path.exists():
         if stale_total > 0:
             p1_items.append(f"任务台账存在 {stale_total} 条超过 {stale_hours} 小时未推进任务，需清理阻塞。")
         elif open_total > 0:
-            p1_items.append(f"当前有 {open_total} 条进行中任务，建议按优先级复核推进节奏。")
+            p1_items.append(f"当前有 {open_total} 条未关闭任务，建议按优先级复核推进节奏。")
         if missing:
             p1_items.append(f"台账审计发现缺失团队台账：{', '.join(missing)}")
     except Exception as exc:

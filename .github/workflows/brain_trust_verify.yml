@@ -36,6 +36,7 @@ jobs:
           bash -n scripts/install_runtime_audit_cron.sh
           bash -n scripts/phase2_runtime_convergence.sh
           bash -n scripts/run_mvp_team_closure.sh
+          bash -n scripts/verify_public_release.sh
           bash -n scripts/tests/test_task_ledger.sh
           bash -n scripts/tests/test_acceptance_gate.sh
           bash -n scripts/tests/test_runtime_health_audit.sh
@@ -45,6 +46,7 @@ jobs:
           bash -n scripts/tests/test_quality_evolution_compact.sh
           bash -n scripts/tests/test_route_learning_compact.sh
           bash -n scripts/tests/test_mvp_team_closure.sh
+          bash -n scripts/tests/test_verify_public_release.sh
 
       - name: Regression suite
         run: |
@@ -59,3 +61,4 @@ jobs:
           ./scripts/tests/test_quality_evolution_compact.sh
           ./scripts/tests/test_route_learning_compact.sh
           ./scripts/tests/test_mvp_team_closure.sh
+          ./scripts/tests/test_verify_public_release.sh

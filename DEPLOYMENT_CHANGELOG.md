@@ -1,5 +1,44 @@
 # Deployment Changelog
 
+## v1.6.12 (2026-03-07)
+
+### Changes
+- Tightened acceptance and quality gate rules in `run_brain_trust_review.sh`:
+  - block acceptance when `intent_alignment_summary.misalignment_found=true`
+  - block acceptance when `editor_summary.p0_conditions` is non-empty
+  - block acceptance when `final_recommendation` is `建议重审`
+- Extended regression coverage in `scripts/test_run_brain_trust_review_regression.sh`:
+  - added `misalignment_critic` case asserting blocked acceptance and blocked quality gate.
+- Added QMD sync health to daily runtime audit:
+  - `scripts/runtime_health_audit.sh` now reads latest `qmd_sync_report-*.json`
+  - degraded/failed/parse_failed QMD sync now surfaces into `improvement_backlog.p1`.
+- Hardened public release verification:
+  - `scripts/verify_public_release.sh` now scans tracked files one by one to reduce false positives
+  - narrowed literal credential regex to avoid flagging command substitution and env expansions
+  - added `scripts/tests/test_verify_public_release.sh`
+- Clarified release workflow docs:
+  - `verify_public_release.sh --root .` on `main`
+  - `--enforce-manifest` only on `release`
+
+### Compatibility Impact
+- Backward compatible at artifact format level.
+- Acceptance is stricter; proposals with intent drift or unresolved P0 conditions now correctly fail acceptance.
+
+### Migration Actions
+- Run:
+  - `./scripts/tests/test_verify_public_release.sh`
+  - `./scripts/test_run_brain_trust_review_regression.sh`
+  - `./scripts/tests/test_runtime_health_audit.sh`
+- Re-check release docs flow:
+  - `./scripts/verify_public_release.sh --root .`
+  - `git switch release && ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
+
+### Verification Evidence
+- `scripts/tests/test_verify_public_release.sh`
+- `scripts/test_run_brain_trust_review_regression.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.11 (2026-03-07)
 
 ### Changes

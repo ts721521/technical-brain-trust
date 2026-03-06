@@ -22,6 +22,7 @@ jobs:
           bash -n scripts/check_release_docs_consistency.sh
           bash -n scripts/validate_docs_path_policy.sh
           bash -n scripts/register_artifact_index.sh
+          bash -n scripts/tests/test_verify_public_release.sh
 
       - name: Public Release Safety Check
         run: |
@@ -33,3 +34,7 @@ jobs:
       - name: Release Docs Consistency
         run: |
           ./scripts/check_release_docs_consistency.sh
+
+      - name: Verify Release Safety Script
+        run: |
+          ./scripts/tests/test_verify_public_release.sh

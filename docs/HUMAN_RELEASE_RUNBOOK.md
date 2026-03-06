@@ -1,4 +1,4 @@
-# Human Release Runbook (v1.6.11)
+# Human Release Runbook (v1.6.12)
 
 本手册面向人类维护者，用于执行与排障发布流程。
 
@@ -13,16 +13,20 @@
 ## 2. 一次发布的完整步骤（5步）
 
 1. 在 `main` 完成改动并提交。
-2. 先做 dry-run：
+2. 在 `main` 先做非严格公开校验：
+   - `./scripts/verify_public_release.sh --root .`
+3. 先做 dry-run：
    - `./scripts/build_release_branch.sh --version vX.Y.Z --dry-run --allow-dirty`
-3. 正式生成 release 分支内容：
+4. 正式生成 release 分支内容：
    - `./scripts/build_release_branch.sh --version vX.Y.Z`
-4. 切到 `release` 运行公开校验：
+5. 切到 `release` 运行公开校验：
    - `git switch release`
    - `./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
    - `./scripts/check_release_docs_consistency.sh`
-5. 推送发布：
+6. 推送发布：
    - `git push origin release --tags`
+
+注意：不要在 main 直接执行 --enforce-manifest。
 
 ## 3. 常见失败与修复
 
@@ -57,6 +61,14 @@
 处理：
 - 切回 `main`，确认变更来源。
 - 清理无关改动后重跑构建脚本。
+
+### 3.5 在 main 误用 enforce-manifest
+
+现象：在 `main` 执行 `--enforce-manifest` 报 `tracked file not in manifest`。
+
+处理：
+- 在 `main` 仅执行 `./scripts/verify_public_release.sh --root .`。
+- 严格校验只在 `release` 快照/分支执行：`./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`。
 
 ## 4. 回滚步骤
 

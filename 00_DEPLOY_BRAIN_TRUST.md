@@ -829,7 +829,7 @@ openclaw agents delete main
 | Agent 不认识自己 | SOUL.md 未放到工作区 | 检查工作区路径是否正确 |
 | UI 不显示名称/Emoji | 未设置 identity | 运行 `openclaw agents set-identity --agent <id> --from-identity` |
 | Agent 串台 | 共享了工作区 | 确认每个 Agent 的 `--workspace` 指向不同目录 |
-| 认证失败 | Agent 无 auth-profiles | 从 main Agent 复制：`cp ~/.openclaw/agents/main/agent/auth-profiles.json ~/.openclaw/agents/<id>/agent/` |
+| 认证失败 | Agent 未完成登录态初始化 | 在对应 Agent 工作区执行 `clawhub login`，然后重试命令。 |
 
 ---
 
