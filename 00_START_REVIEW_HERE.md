@@ -101,6 +101,14 @@
 - [ ] 天条六（复杂度约束）是否被模板强制化？
 - [ ] Stage 2 交叉复核与 Stage 3 总编整合是否有产物与留痕？
 - [ ] Stage 4 盘古执行是否默认触发、失败可降级且有可重试留痕？
+- [ ] 是否定义 `acceptance_report.json` 且由 `braintrust_compliance` 负责验收？
+- [ ] 用户画像治理是否落实为 `wenquxing` 主写入、`knowledge_manager` 审计治理？
+- [ ] 学习体系是否定义唯一接口代理 `scholar`（用户不直连 `km_*` 内部角色）？
+- [ ] 是否定义 `feige_notifier` 对外通知职责，并要求产出 `notification_receipt`？
+- [ ] 是否定义每日学习节奏：`1课题/日 + 空闲持续学习 + 日上限20来源`？
+- [ ] 是否定义开源学习评分模型与入库门槛（`project_score >= 70` 才可入候选）？
+- [ ] 是否定义学习失败阻断：源站切源、QMD失败阻断、审查blocked禁入主库、通知失败补发？
+- [ ] 业务产物路径是否强制 `/Volumes/TB512/3_ClawDocs/<team>/<artifact>/<yyyymm>/`？
 - [ ] 是否定义 QSGP（三关门禁）并在任一失败时强制 `blocked`？
 - [ ] 是否定义 QEL（周期改进闭环）且有量化指标变化？
 

@@ -33,6 +33,9 @@ complete options:
   --queue-id <id>                  required
   --result <success|failed>        required
   --error-code <code>              optional
+  --proof-files <csv>              required when --result success
+  --proof-json <path>              required when --result success
+  --proof-stderr <path>            optional proof log scan when --result success
 
 drain options:
   --running-ttl-seconds <n>        default: 180
@@ -67,6 +70,9 @@ scale_action="none"
 result_status=""
 error_code=""
 running_ttl_seconds="180"
+proof_files=""
+proof_json=""
+proof_stderr=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -98,6 +104,12 @@ while [[ $# -gt 0 ]]; do
       error_code="${2:-}"; shift 2 ;;
     --running-ttl-seconds)
       running_ttl_seconds="${2:-}"; shift 2 ;;
+    --proof-files)
+      proof_files="${2:-}"; shift 2 ;;
+    --proof-json)
+      proof_json="${2:-}"; shift 2 ;;
+    --proof-stderr)
+      proof_stderr="${2:-}"; shift 2 ;;
     -h|--help)
       usage
       exit 0
@@ -136,9 +148,10 @@ if ! [[ "${running_ttl_seconds}" =~ ^[0-9]+$ ]] || (( running_ttl_seconds < 1 ))
   exit 1
 fi
 
-python3 - "$command" "$queue_file" "$state_file" "$lock_file" "$intent_class" "$task_hint" "$queue_max" "$queue_id" "$max_inflight" "$dispatch_timeout_seconds" "$dispatch_target" "$scale_action" "$result_status" "$error_code" "$running_ttl_seconds" <<'PY'
+python3 - "$command" "$queue_file" "$state_file" "$lock_file" "$intent_class" "$task_hint" "$queue_max" "$queue_id" "$max_inflight" "$dispatch_timeout_seconds" "$dispatch_target" "$scale_action" "$result_status" "$error_code" "$running_ttl_seconds" "$proof_files" "$proof_json" "$proof_stderr" <<'PY'
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -162,6 +175,9 @@ import fcntl
     result_status,
     error_code,
     running_ttl_seconds,
+    proof_files,
+    proof_json,
+    proof_stderr,
 ) = sys.argv[1:]
 
 queue_max = int(queue_max)
@@ -377,6 +393,43 @@ def cmd_complete():
         print(json.dumps({"status": "error", "error": "result_required"}, ensure_ascii=False))
         return 2
 
+    def proof_failed_reason():
+        # Success completion now requires explicit artifact proof.
+        if result_status != "success":
+            return ""
+
+        raw_files = [part.strip() for part in str(proof_files or "").split(",") if part.strip()]
+        if not raw_files:
+            return "completion_without_artifact"
+        for fp in raw_files:
+            p = Path(fp)
+            if not p.exists() or p.stat().st_size == 0:
+                return "completion_without_artifact"
+
+        if not proof_json:
+            return "completion_without_artifact"
+        pj = Path(proof_json)
+        if not pj.exists() or pj.stat().st_size == 0:
+            return "completion_without_artifact"
+        try:
+            data = json.loads(pj.read_text(encoding="utf-8"))
+        except Exception:
+            return "completion_without_artifact"
+        if not isinstance(data, dict):
+            return "completion_without_artifact"
+
+        if proof_stderr:
+            ps = Path(proof_stderr)
+            if ps.exists():
+                txt = ps.read_text(encoding="utf-8", errors="ignore").lower()
+                if re.search(
+                    r"(pangu_execution_failed|queue_dispatch_timeout|delegate_unreachable|delegate_timeout|request was aborted|error:)",
+                    txt,
+                ):
+                    return "completion_without_artifact"
+
+        return ""
+
     def _do():
         data = load_state()
         target = None
@@ -388,21 +441,33 @@ def cmd_complete():
             print(json.dumps({"status": "missing", "queue_id": queue_id}, ensure_ascii=False))
             return 3
 
-        target["status"] = "completed" if result_status == "success" else "failed"
+        effective_result = result_status
+        effective_error = error_code or ""
+        forced_reason = proof_failed_reason()
+        if forced_reason:
+            effective_result = "failed"
+            effective_error = forced_reason
+
+        target["status"] = "completed" if effective_result == "success" else "failed"
         target["end_ts"] = now_iso()
         target["end_ts_ms"] = now_ms()
-        target["last_error"] = error_code or ""
+        target["last_error"] = effective_error
         save_state(data)
         append_event(
             {
-                "event": "complete" if result_status == "success" else "failed",
+                "event": "complete" if effective_result == "success" else "failed",
                 "timestamp": now_iso(),
                 "queue_id": queue_id,
-                "error_code": error_code or "",
+                "error_code": effective_error,
             }
         )
-        print(json.dumps({"status": target["status"], "queue_id": queue_id}, ensure_ascii=False))
-        return 0
+        print(
+            json.dumps(
+                {"status": target["status"], "queue_id": queue_id, "error_code": effective_error},
+                ensure_ascii=False,
+            )
+        )
+        return 0 if effective_result == "success" else 3
 
     return lock_and_run(_do)
 

@@ -1,6 +1,6 @@
 # 📋 审查工作流 (Review Workflow)
 
-> **用途**：定义主 Agent 如何将方案发送给智囊团审查，并通过“先独立、后对齐、再整合、再执行”的编排机制稳定产出闭环结果。
+> **用途**：定义主 Agent 如何将方案发送给智囊团审查，并通过“先独立、后对齐、再整合、再执行、再验收”的编排机制稳定产出闭环结果。
 
 ---
 
@@ -111,6 +111,7 @@ Stage 4 产物：
 
 ```
 在 Stage 4 产物基础上执行质量自把关与持续改进回写
+  → 产出 acceptance_report.json（braintrust_compliance 验收）
   → 产出 quality_gate_report.json（本次交付质量门禁）
   → 更新 quality_improvement_log.jsonl（周期改进台账）
   → 更新 quality_baseline.yaml（质量基线）
@@ -120,6 +121,61 @@ Stage 5 强制规则：
 1. 任一质量关失败，交付状态必须为 `blocked`。
 2. 交付必须包含验证证据与回滚计划。
 3. 周期改进必须含量化指标变化，不允许空转。
+4. 本轮验收由 `braintrust_compliance` 输出 `acceptance_report.json`，未通过必须回流原执行团队整改。
+5. `execution_heavy` 任务不得仅凭文本回复视为完成，必须通过产物 proof gate。
+
+### 任务生命周期台账（强制）
+
+所有 `execution_heavy` 任务必须写入统一台账：  
+`/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/task_ledger.jsonl`
+
+状态机固定为：
+- `published -> assigned -> in_progress -> review -> acceptance -> done`
+- 验收阻断回流：`acceptance -> in_progress`
+
+回写规则：
+1. Stage1 开始前至少进入 `in_progress`。
+2. Stage3 完成后必须进入 `review`。
+3. 生成 `acceptance_report.json` 后必须进入 `acceptance`。
+4. `acceptance_report.status=pass` 才能进入 `done`。
+5. `acceptance_report.status=blocked` 必须回写 `in_progress`，并附 `reopen_actions`。
+
+---
+
+## Scholar 学习场景（每日闭环）
+
+> 此闭环用于“知识学习与知识库演进”任务；不替代五段式方案审查链路。
+
+### Daily Loop：学习 -> 审查 -> 验收 -> 通知
+
+```
+main 路由学习请求到 scholar（唯一学习接口代理）
+  → scholar 编排 km_collector/km_organizer/km_indexer/wenquxing
+  → knowledge_manager 执行治理审计
+  → braintrust 输出学习评审建议
+  → braintrust_compliance 输出 acceptance_report
+  → feige_notifier 向 Telegram/Email 通知并回写回执
+```
+
+学习节奏固定：
+1. 每日 1 个学习课题。
+2. 空闲时允许持续学习。
+3. 每日来源上限 20 条（默认，可由人类调整）。
+4. 默认在 `04:00` 执行“审查后通知”。
+
+学习任务必备产物：
+- `learning_topic_plan-YYYYMMDD-HHMMSS.md`
+- `source_candidates-YYYYMMDD-HHMMSS.json`
+- `source_evaluation-YYYYMMDD-HHMMSS.json`
+- `knowledge_digest-YYYYMMDD-HHMMSS.md`
+- `qmd_sync_report-YYYYMMDD-HHMMSS.json`
+- `notification_receipt-YYYYMMDD-HHMMSS.json`
+
+学习失败阻断规则：
+1. 源站不可用/限流：必须切源重试并记录证据。
+2. QMD 更新失败：状态强制 `blocked/degraded`，不得宣告完成。
+3. 智囊团评审 `blocked`：不得写入主知识库。
+4. 通知失败：必须自动补发，并记录最终 `final_status`。
 
 ---
 

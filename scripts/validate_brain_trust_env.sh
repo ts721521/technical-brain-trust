@@ -57,6 +57,13 @@ required_yaml_keys=(
   "queue_max:"
   "backlog_scale_threshold:"
   "dispatch_timeout_seconds:"
+  "output:"
+  "docs_root:"
+  "team_id:"
+  "path_policy:"
+  "max_depth_after_root:"
+  "index_file_policy:"
+  "relative_path:"
 )
 
 for key in "${required_yaml_keys[@]}"; do
@@ -144,6 +151,7 @@ checks = {
     "runtime.scheduler.dispatch_timeout_seconds": lambda v: isinstance(v, int) and v >= 1,
     "runtime.scheduler.retry.max_attempts": lambda v: isinstance(v, int) and v >= 1,
     "runtime.scheduler.retry.backoff_seconds": lambda v: isinstance(v, (int, float)) and v >= 0,
+    "output.path_policy.max_depth_after_root": lambda v: isinstance(v, int) and v == 3,
 }
 
 for key, fn in checks.items():
@@ -156,7 +164,41 @@ scope = get("runtime.scheduler.scope")
 if scope != "execution_heavy_only":
     print(f"Invalid runtime.scheduler.scope: {scope}", file=sys.stderr)
     raise SystemExit(1)
+
+docs_root = get("output.docs_root")
+if not isinstance(docs_root, str) or not docs_root.strip():
+    print("Invalid output.docs_root", file=sys.stderr)
+    raise SystemExit(1)
+
+team_id = get("output.team_id")
+if not isinstance(team_id, str) or not re.fullmatch(r"team-[a-z0-9]+(-[a-z0-9]+)*", team_id):
+    print(f"Invalid output.team_id: {team_id}", file=sys.stderr)
+    raise SystemExit(1)
+
+index_path = get("output.index_file_policy.relative_path")
+if not isinstance(index_path, str) or "<yyyymm>" not in index_path:
+    print(f"Invalid output.index_file_policy.relative_path: {index_path}", file=sys.stderr)
+    raise SystemExit(1)
 PY
+
+docs_root_runtime="${BT_DOCS_ROOT:-}"
+if [[ -z "${docs_root_runtime}" ]]; then
+  docs_root_runtime="$(python3 - "${CONFIG_FILE}" <<'PY'
+import re
+import sys
+from pathlib import Path
+txt = Path(sys.argv[1]).read_text(encoding="utf-8")
+m = re.search(r'^\s*docs_root:\s*"?([^"\n]+)"?\s*$', txt, flags=re.M)
+print(m.group(1).strip() if m else "")
+PY
+)"
+fi
+
+if [[ -z "${docs_root_runtime}" || ! -d "${docs_root_runtime}" || ! -w "${docs_root_runtime}" ]]; then
+  echo "Business docs root unavailable or not writable: ${docs_root_runtime:-<empty>}" >&2
+  echo "Set BT_DOCS_ROOT to a writable mounted path before running." >&2
+  exit 1
+fi
 
 available_models=()
 while IFS= read -r line; do
@@ -225,9 +267,43 @@ if (( ${#openai_violations[@]} > 0 )); then
   exit 1
 fi
 
-agents_output="$(openclaw agents list 2>/dev/null || true)"
-for role in architect critic innovator pangu luban; do
-  if ! printf '%s\n' "${agents_output}" | rg -q -- "- ${role}(\\s|$)"; then
+required_agents=(architect critic innovator pangu luban braintrust_compliance wenquxing knowledge_manager rd_lead scholar feige_notifier)
+
+agents_json_output="$(openclaw agents list --json 2>/dev/null || true)"
+agents_plain_output="$(openclaw agents list 2>/dev/null || true)"
+
+agent_exists() {
+  local target="$1"
+  if [[ -n "${agents_json_output}" ]] && python3 - "${target}" "${agents_json_output}" <<'PY'
+import json
+import sys
+
+target = sys.argv[1]
+raw = sys.argv[2].strip()
+if not raw:
+    raise SystemExit(1)
+try:
+    data = json.loads(raw)
+except Exception:
+    raise SystemExit(1)
+if isinstance(data, list):
+    for item in data:
+        if isinstance(item, dict) and item.get("id") == target:
+            raise SystemExit(0)
+raise SystemExit(1)
+PY
+  then
+    return 0
+  fi
+
+  if printf '%s\n' "${agents_plain_output}" | rg -q -- "(^- ${target}(\\s|$)|\"id\"\\s*:\\s*\"${target}\"|\\b${target}\\b)"; then
+    return 0
+  fi
+  return 1
+}
+
+for role in "${required_agents[@]}"; do
+  if ! agent_exists "${role}"; then
     echo "Missing required agent: ${role}. Run openclaw agents add ${role} ..." >&2
     exit 1
   fi

@@ -2,11 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RUN_SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 CONFIG_FILE="${ROOT_DIR}/config/brain_trust_config.yaml"
 VALIDATOR="${ROOT_DIR}/scripts/validate_brain_trust_env.sh"
 MODEL_SYNC="${ROOT_DIR}/scripts/sync_brain_trust_models.sh"
 TASK_SCHEDULER="${ROOT_DIR}/scripts/pangu_task_scheduler.sh"
 SCHEDULER_CAPACITY="${ROOT_DIR}/scripts/ensure_scheduler_capacity.sh"
+DOCS_POLICY_VALIDATOR="${ROOT_DIR}/scripts/validate_docs_path_policy.sh"
+ARTIFACT_INDEX_REGISTER="${ROOT_DIR}/scripts/register_artifact_index.sh"
+TASK_LEDGER_SCRIPT="${ROOT_DIR}/scripts/task_ledger.sh"
 
 proposal=""
 depth="standard"
@@ -23,6 +27,7 @@ usage() {
 Usage: $(basename "$0") --proposal <path> [--depth quick|standard|deep] [--focus "text"] [--out <dir>] [--local]
        [--execute-with-pangu true|false] [--pangu-agent <id>] [--execution-mode auto]
        [--execution-timeout-seconds <n>]
+Default output: \$BT_DOCS_ROOT/<team>/review/<yyyymm>/ (unless --out specified)
 USAGE
 }
 
@@ -219,6 +224,8 @@ scheduler_backlog_scale_threshold="$(read_config_path "runtime.scheduler.backlog
 scheduler_dispatch_timeout_seconds="$(read_config_path "runtime.scheduler.dispatch_timeout_seconds" "180")"
 scheduler_retry_max_attempts="$(read_config_path "runtime.scheduler.retry.max_attempts" "2")"
 scheduler_retry_backoff_seconds="$(read_config_path "runtime.scheduler.retry.backoff_seconds" "5")"
+output_docs_root_cfg="$(read_config_path "output.docs_root" "/Volumes/TB512/3_ClawDocs")"
+output_team_id_cfg="$(read_config_path "output.team_id" "team-brain-trust")"
 
 weight_feasibility="$(read_config_path "scoring_weights.feasibility" "0.25")"
 weight_robustness="$(read_config_path "scoring_weights.robustness" "0.20")"
@@ -303,6 +310,10 @@ if [[ -z "${pangu_agent}" ]]; then
   pangu_agent="pangu"
 fi
 
+if [[ -z "${task_owner:-}" ]]; then
+  task_owner="${pangu_agent}"
+fi
+
 if [[ "${execute_with_pangu}" != "true" && "${execute_with_pangu}" != "false" ]]; then
   echo "invalid --execute-with-pangu: ${execute_with_pangu}" >&2
   exit 1
@@ -332,8 +343,26 @@ if (( estimated_tokens_per_role > max_tokens_per_role )); then
 fi
 
 ts="$(date +%Y%m%d_%H%M%S)"
+yyyymm="$(date +%Y%m)"
+docs_root="${BT_DOCS_ROOT:-${output_docs_root_cfg}}"
+team_id="${BT_TEAM_ID:-${output_team_id_cfg}}"
 if [[ -z "${out_dir}" ]]; then
-  out_dir="${ROOT_DIR}/reviews/${ts}"
+  out_dir="${docs_root}/${team_id}/review/${yyyymm}"
+fi
+task_id="${BT_TASK_ID:-brain-trust-${ts}}"
+task_title="review-$(basename "${proposal}")"
+if [[ -n "${focus}" ]]; then
+  task_title="${task_title}-${focus}"
+fi
+task_ledger_file="${BT_TASK_LEDGER_FILE:-${docs_root}/${team_id}/ops/${yyyymm}/task_ledger.jsonl}"
+task_owner="${BT_TASK_OWNER:-${task_owner}}"
+
+if [[ "${BT_SKIP_DOCS_POLICY:-false}" != "true" ]]; then
+  if [[ ! -x "${DOCS_POLICY_VALIDATOR}" ]]; then
+    echo "missing required script: ${DOCS_POLICY_VALIDATOR}" >&2
+    exit 1
+  fi
+  "${DOCS_POLICY_VALIDATOR}" --docs-root "${docs_root}" --out "${out_dir}" >/dev/null
 fi
 mkdir -p "${out_dir}"
 
@@ -956,12 +985,28 @@ run_scheduler_complete() {
   local queue_id="$1"
   local result_status="$2"
   local err_code="$3"
-  "${TASK_SCHEDULER}" complete \
+  local proof_files="${4:-}"
+  local proof_json="${5:-}"
+  local proof_stderr="${6:-}"
+
+  local cmd=("${TASK_SCHEDULER}" complete \
     --queue-file "${scheduler_queue_file}" \
     --state-file "${scheduler_state_file}" \
     --queue-id "${queue_id}" \
     --result "${result_status}" \
-    --error-code "${err_code}" >/dev/null 2>&1 || true
+    --error-code "${err_code}")
+
+  if [[ -n "${proof_files}" ]]; then
+    cmd+=(--proof-files "${proof_files}")
+  fi
+  if [[ -n "${proof_json}" ]]; then
+    cmd+=(--proof-json "${proof_json}")
+  fi
+  if [[ -n "${proof_stderr}" ]]; then
+    cmd+=(--proof-stderr "${proof_stderr}")
+  fi
+
+  "${cmd[@]}" >/dev/null 2>&1 || true
 }
 
 build_default_scheduling_summary() {
@@ -1027,6 +1072,51 @@ Path(sys.argv[1]).write_text(
     encoding="utf-8",
 )
 PY
+}
+
+validate_execution_proof() {
+  local plan_file="$1"
+  local report_file="$2"
+  local raw_file="$3"
+  local summary_json="$4"
+  local stderr_file="$5"
+  local reason_out="$6"
+
+  local reason=""
+  if [[ ! -s "${plan_file}" || ! -s "${report_file}" || ! -s "${raw_file}" || ! -s "${summary_json}" ]]; then
+    reason="completion_without_artifact"
+  else
+    if ! python3 - "${summary_json}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+if not isinstance(data, dict):
+    raise SystemExit(1)
+required = ("implemented_items", "deferred_items", "retryable_items", "failure_reason")
+for key in required:
+    if key not in data:
+        raise SystemExit(1)
+raise SystemExit(0)
+PY
+    then
+      reason="completion_without_artifact"
+    fi
+  fi
+
+  if [[ -z "${reason}" ]] && [[ -s "${stderr_file}" ]]; then
+    if rg -qi "(pangu_execution_failed|queue_dispatch_timeout|delegate_unreachable|delegate_timeout|request was aborted|error:)" "${stderr_file}"; then
+      reason="completion_without_artifact"
+    fi
+  fi
+
+  printf "%s" "${reason}" > "${reason_out}"
+  [[ -z "${reason}" ]]
 }
 
 run_pangu_execution() {
@@ -1163,8 +1253,21 @@ PY
       } >>"${stderr_file}"
       rm -f "${tmp_err}"
       parse_pangu_execution_output "${raw_file}" "${plan_file}" "${report_file}" "${summary_json}"
+      local proof_reason_file proof_reason
+      proof_reason_file="${summary_json}.proof_reason"
+      if ! validate_execution_proof "${plan_file}" "${report_file}" "${raw_file}" "${summary_json}" "${stderr_file}" "${proof_reason_file}"; then
+        proof_reason="$(cat "${proof_reason_file}" 2>/dev/null || true)"
+        rm -f "${proof_reason_file}"
+        proof_reason="${proof_reason:-completion_without_artifact}"
+        if [[ -n "${queue_id}" ]]; then
+          run_scheduler_complete "${queue_id}" "failed" "${proof_reason}"
+        fi
+        write_pangu_execution_failure "${plan_file}" "${report_file}" "${summary_json}" "${stderr_file}" "${proof_reason}" "执行完成校验未通过，请补齐关键产物后重试"
+        return 1
+      fi
+      rm -f "${proof_reason_file}"
       if [[ -n "${queue_id}" ]]; then
-        run_scheduler_complete "${queue_id}" "success" ""
+        run_scheduler_complete "${queue_id}" "success" "" "${plan_file},${report_file},${raw_file},${summary_json}" "${summary_json}" "${stderr_file}"
       fi
       return 0
     fi
@@ -1269,6 +1372,22 @@ data["orchestration"]["stage4_executor"] = actual_executor
 data["execution_summary"] = execution_summary
 data["scheduling_summary"] = scheduling_summary
 
+diag = data.setdefault("parse_diagnostics", {})
+errors = diag.get("errors")
+if not isinstance(errors, list):
+    errors = []
+if stage4_failure_reason:
+    errors.append(f"stage4:{stage4_failure_reason}")
+sched_err = str(scheduling_summary.get("error_code", "") or "")
+if sched_err:
+    errors.append(f"scheduler:{sched_err}")
+diag["errors"] = list(dict.fromkeys(str(e) for e in errors if str(e).strip()))
+
+data["execution_proof"] = {
+    "passed": stage4_status == "complete",
+    "failure_reason": stage4_failure_reason or sched_err,
+}
+
 if stage4_status == "failed":
     data["final_recommendation"] = "建议重审"
 elif stage4_status == "degraded" and data.get("final_recommendation") == "建议采纳":
@@ -1296,6 +1415,7 @@ stage4_block = (
     "\n## Stage 4 产物\n"
     "- pangu_execution_plan.md\n"
     "- pangu_execution_report.md\n"
+    "- acceptance_report.json（Stage 5 验收）\n"
 )
 
 if "\n## Stage 4 盘古执行\n" in summary:
@@ -1303,6 +1423,293 @@ if "\n## Stage 4 盘古执行\n" in summary:
 summary = summary.rstrip() + "\n" + stage4_block + "\n"
 summary_path.write_text(summary, encoding="utf-8")
 PY
+}
+
+append_stage4_routing_trace() {
+  local stage4_status="$1"
+  local stage4_failure_reason="$2"
+  local scheduling_json="$3"
+  local route_log_path="${BT_ROUTING_LOG_PATH:-$HOME/.openclaw/workspace/memory/ROUTING_DECISIONS.jsonl}"
+  python3 - "${route_log_path}" "${stage4_status}" "${stage4_failure_reason}" "${scheduling_json}" "${pangu_agent}" "${execution_max_attempts}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+log_path = Path(sys.argv[1]).expanduser()
+stage4_status = sys.argv[2]
+failure_reason = sys.argv[3]
+scheduling_path = Path(sys.argv[4])
+selected_agent = sys.argv[5]
+max_attempts = int(sys.argv[6]) if str(sys.argv[6]).isdigit() else 1
+
+scheduling = {}
+if scheduling_path.exists():
+    try:
+        scheduling = json.loads(scheduling_path.read_text(encoding="utf-8"))
+    except Exception:
+        scheduling = {}
+
+status_map = {
+    "complete": "success",
+    "degraded": "degraded",
+    "failed": "failed",
+    "skipped": "skipped",
+}
+result_status = status_map.get(stage4_status, "degraded")
+sched_err = str(scheduling.get("error_code", "") or "")
+error_code = failure_reason or sched_err or "none"
+
+row = {
+    "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    "intent_class": "execution_heavy",
+    "selected_agent": selected_agent,
+    "fallback_agent": "scheduler-*",
+    "result_status": result_status,
+    "reason": failure_reason or f"stage4_{stage4_status}",
+    "feedback_signal": "pending",
+    "delivery_mode": "delegate",
+    "delegate_attempts": max_attempts if result_status != "success" else 1,
+    "error_code": error_code,
+    "recovered": error_code in {"delegate_recovered", "scheduler_routed"},
+    "queued": bool(scheduling.get("queued", False)),
+    "queue_id": scheduling.get("queue_id") or "",
+    "queue_wait_ms": int(float(scheduling.get("queue_wait_ms") or 0)),
+    "dispatch_target": scheduling.get("dispatch_target") or selected_agent,
+    "queue_depth_at_enqueue": int(float(scheduling.get("queue_depth_at_enqueue") or 0)),
+    "scale_action": scheduling.get("scale_action") or "none",
+}
+
+log_path.parent.mkdir(parents=True, exist_ok=True)
+with log_path.open("a", encoding="utf-8") as f:
+    f.write(json.dumps(row, ensure_ascii=False) + "\n")
+PY
+}
+
+write_acceptance_report() {
+  local structured_file="$1"
+  local acceptance_file="$2"
+  python3 - "${structured_file}" "${acceptance_file}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+structured_path = Path(sys.argv[1])
+acceptance_path = Path(sys.argv[2])
+
+data = {}
+if structured_path.exists():
+    try:
+        data = json.loads(structured_path.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+
+orchestration = data.get("orchestration", {}) if isinstance(data, dict) else {}
+execution_proof = data.get("execution_proof", {}) if isinstance(data, dict) else {}
+execution_summary = data.get("execution_summary", {}) if isinstance(data, dict) else {}
+
+stage4_status = str(orchestration.get("stage4_status", "unknown") or "unknown")
+proof_passed = bool(execution_proof.get("passed", False))
+
+status = "pass" if stage4_status == "complete" and proof_passed else "blocked"
+evidence = []
+for file_name in (
+    "pangu_execution_plan.md",
+    "pangu_execution_report.md",
+    "pangu_execution_raw.json",
+    "structured_summary.json",
+    "summary_report.md",
+):
+    p = acceptance_path.parent / file_name
+    if p.exists() and p.stat().st_size > 0:
+        evidence.append(str(p))
+
+reopen_actions = []
+for item in execution_summary.get("retryable_items", []) if isinstance(execution_summary, dict) else []:
+    if isinstance(item, str) and item.strip():
+        reopen_actions.append(item.strip())
+
+if status == "blocked" and not reopen_actions:
+    reopen_actions.append("根据错误码与执行日志补齐产物后重跑 Stage4 与验收。")
+
+payload = {
+    "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    "task_id": str(data.get("task_id") or acceptance_path.parent.name),
+    "owner_team": "team-brain-trust",
+    "reviewer": "braintrust_compliance",
+    "status": status,
+    "stage4_status": stage4_status,
+    "evidence": evidence,
+    "reopen_actions": reopen_actions,
+}
+acceptance_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+write_quality_gate_report() {
+  local structured_file="$1"
+  local acceptance_file="$2"
+  local quality_file="$3"
+  python3 - "${structured_file}" "${acceptance_file}" "${quality_file}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+structured = {}
+acceptance = {}
+
+sp = Path(sys.argv[1])
+ap = Path(sys.argv[2])
+qp = Path(sys.argv[3])
+
+if sp.exists():
+    try:
+        structured = json.loads(sp.read_text(encoding="utf-8"))
+    except Exception:
+        structured = {}
+if ap.exists():
+    try:
+        acceptance = json.loads(ap.read_text(encoding="utf-8"))
+    except Exception:
+        acceptance = {}
+
+parse_errors = []
+if isinstance(structured.get("parse_diagnostics"), dict):
+    parse_errors = structured["parse_diagnostics"].get("errors") or []
+
+stage4_status = ""
+execution_proof_ok = False
+if isinstance(structured.get("orchestration"), dict):
+    stage4_status = str(structured["orchestration"].get("stage4_status", "") or "")
+if isinstance(structured.get("execution_proof"), dict):
+    execution_proof_ok = bool(structured["execution_proof"].get("passed", False))
+
+acceptance_status = str(acceptance.get("status", "") or "")
+
+precheck_pass = len(parse_errors) == 0
+execution_pass = stage4_status == "complete" and execution_proof_ok
+release_pass = acceptance_status == "pass"
+
+blocked_reasons = []
+if not precheck_pass:
+    blocked_reasons.append("parse_diagnostics.errors not empty")
+if not execution_pass:
+    blocked_reasons.append("stage4 execution proof not passed")
+if not release_pass:
+    blocked_reasons.append("acceptance report is not pass")
+
+payload = {
+    "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    "artifact_id": qp.parent.name,
+    "owner_agent": "pangu",
+    "precheck": {"status": "pass" if precheck_pass else "fail"},
+    "execution_check": {"status": "pass" if execution_pass else "fail"},
+    "release_check": {"status": "pass" if release_pass else "fail"},
+    "blocked_reasons": blocked_reasons,
+    "final_quality_status": "pass" if not blocked_reasons else "blocked",
+}
+qp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
+task_ledger_exec() {
+  local cmd="$1"
+  shift || true
+
+  if [[ ! -x "${TASK_LEDGER_SCRIPT}" ]]; then
+    return 0
+  fi
+
+  if ! "${TASK_LEDGER_SCRIPT}" "${cmd}" "$@" --ledger "${task_ledger_file}" >>"${out_dir}/task_ledger.stdout.log" 2>>"${out_dir}/task_ledger.stderr.log"; then
+    echo "[warn] task_ledger command failed: ${cmd} $*" >&2
+    return 1
+  fi
+  return 0
+}
+
+task_ledger_initialize() {
+  task_ledger_exec create \
+    --task-id "${task_id}" \
+    --team "${team_id}" \
+    --title "${task_title}" \
+    --owner "${task_owner}" >/dev/null 2>&1 || true
+
+  task_ledger_exec transition --task-id "${task_id}" --to assigned --reason "main_assigned" >/dev/null 2>&1 || true
+  task_ledger_exec transition --task-id "${task_id}" --to in_progress --reason "stage1_started" >/dev/null 2>&1 || true
+}
+
+task_ledger_mark_review() {
+  task_ledger_exec transition --task-id "${task_id}" --to review --reason "stage3_completed" >/dev/null 2>&1 || true
+}
+
+task_ledger_mark_acceptance() {
+  local acceptance_file="$1"
+  local status reopen_actions
+
+  task_ledger_exec transition --task-id "${task_id}" --to acceptance --reason "acceptance_generated" >/dev/null 2>&1 || true
+  status="$(json_read_field "${acceptance_file}" "status" "blocked")"
+
+  if [[ "${status}" == "pass" ]]; then
+    task_ledger_exec transition --task-id "${task_id}" --to done --reason "acceptance_passed" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  reopen_actions="$(python3 - "${acceptance_file}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+if not path.exists():
+    print("[]")
+    raise SystemExit(0)
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("[]")
+    raise SystemExit(0)
+items = data.get("reopen_actions", [])
+if not isinstance(items, list):
+    items = []
+clean = [str(x).strip() for x in items if str(x).strip()]
+print(json.dumps(clean, ensure_ascii=False))
+PY
+)"
+  task_ledger_exec transition \
+    --task-id "${task_id}" \
+    --to in_progress \
+    --reason "acceptance_blocked" \
+    --error-code "acceptance_blocked" \
+    --reopen-actions "${reopen_actions}" >/dev/null 2>&1 || true
+}
+
+register_artifact_indexes() {
+  local artifact="${1:-review}"
+  if [[ "${BT_SKIP_DOCS_POLICY:-false}" == "true" || ! -x "${ARTIFACT_INDEX_REGISTER}" ]]; then
+    return 0
+  fi
+  local files=(
+    "${out_dir}/summary_report.md"
+    "${out_dir}/structured_summary.json"
+    "${out_dir}/editor_review.md"
+    "${out_dir}/acceptance_report.json"
+    "${out_dir}/quality_gate_report.json"
+    "${out_dir}/pangu_execution_report.md"
+  )
+  local f
+  for f in "${files[@]}"; do
+    [[ -f "${f}" ]] || continue
+    "${ARTIFACT_INDEX_REGISTER}" \
+      --docs-root "${docs_root}" \
+      --team "${team_id}" \
+      --artifact "${artifact}" \
+      --topic "brain-trust-review" \
+      --path "${f}" \
+      --producer-script "${RUN_SCRIPT_NAME:-run_brain_trust_review.sh}" \
+      --status "generated" >/dev/null || true
+  done
 }
 
 csv_join() {
@@ -1320,6 +1727,8 @@ innovator_json="${out_dir}/innovator_raw.json"
 architect_routing="${out_dir}/architect_model_routing.log"
 critic_routing="${out_dir}/critic_model_routing.log"
 innovator_routing="${out_dir}/innovator_model_routing.log"
+
+task_ledger_initialize
 
 ok_roles=0
 fail_roles=0
@@ -1440,7 +1849,7 @@ pangu_exec_summary_json="${out_dir}/pangu_execution_summary.json"
 pangu_stderr_file="${out_dir}/pangu_execution_raw.json.stderr"
 scheduling_summary_json="${out_dir}/scheduling_summary.json"
 
-scheduler_memory_dir="${HOME}/.openclaw/workspaces/${pangu_agent}/memory"
+scheduler_memory_dir="${BT_SCHEDULER_MEMORY_DIR:-$HOME/.openclaw/workspaces/${pangu_agent}/memory}"
 mkdir -p "${scheduler_memory_dir}"
 scheduler_queue_file="${scheduler_memory_dir}/TASK_QUEUE.jsonl"
 scheduler_state_file="${scheduler_memory_dir}/TASK_QUEUE_STATE.json"
@@ -1456,7 +1865,8 @@ python3 - \
   "$original_chars" "$effective_chars" "$proposal_truncated" \
   "$max_tokens_per_role" "$estimated_tokens_per_role" "$token_budget_exceeded" \
   "$weight_feasibility" "$weight_robustness" "$weight_scalability" \
-  "$weight_simplicity" "$weight_innovation" "$weight_risk" <<'PY'
+  "$weight_simplicity" "$weight_innovation" "$weight_risk" \
+  "$task_id" <<'PY'
 import json
 import re
 import sys
@@ -1492,6 +1902,7 @@ from pathlib import Path
     w_simplicity,
     w_innovation,
     w_risk,
+    task_id,
 ) = sys.argv[1:]
 
 role_files = {
@@ -1940,6 +2351,7 @@ for role, path in routing_files.items():
     model_routing_summary[role] = parse_model_routing(path)
 
 structured = {
+    "task_id": task_id,
     "execution_status": execution_status,
     "final_score": final_score,
     "final_recommendation": final_recommendation,
@@ -2106,6 +2518,8 @@ summary = f"""# 综合审查摘要
 Path(summary_path).write_text(summary, encoding="utf-8")
 PY
 
+task_ledger_mark_review
+
 stage4_status="skipped"
 stage4_failure_reason=""
 if [[ "${execute_with_pangu}" == "true" ]]; then
@@ -2113,7 +2527,10 @@ if [[ "${execute_with_pangu}" == "true" ]]; then
     stage4_status="complete"
   else
     stage4_status="degraded"
-    stage4_failure_reason="pangu_execution_failed"
+    stage4_failure_reason="$(json_read_field "${pangu_exec_summary_json}" "failure_reason" "pangu_execution_failed")"
+    if [[ -z "${stage4_failure_reason}" ]]; then
+      stage4_failure_reason="pangu_execution_failed"
+    fi
     if [[ "${execution_on_failure}" == "fail" ]]; then
       stage4_status="failed"
     fi
@@ -2121,5 +2538,10 @@ if [[ "${execute_with_pangu}" == "true" ]]; then
 fi
 
 apply_stage4_to_reports "${structured_file}" "${summary_file}" "${stage4_status}" "${pangu_exec_summary_json}" "${scheduling_summary_json}" "${stage4_failure_reason}"
+append_stage4_routing_trace "${stage4_status}" "${stage4_failure_reason}" "${scheduling_summary_json}"
+write_acceptance_report "${structured_file}" "${out_dir}/acceptance_report.json"
+task_ledger_mark_acceptance "${out_dir}/acceptance_report.json"
+write_quality_gate_report "${structured_file}" "${out_dir}/acceptance_report.json" "${out_dir}/quality_gate_report.json"
+register_artifact_indexes "review"
 
 echo "Review finished: ${out_dir}"

@@ -607,3 +607,96 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 审查入口新增质量检查项 | 00_START_REVIEW_HERE.md | 审查阶段强制检查 `quality_gate_report` 与 `quality_improvement_log`，防止遗漏。 | 已完成（检查清单新增 QSGP/QEL 条目） | 2026-03-06 |
 | 发布说明补充质量闭环契约 | DEPLOYMENT_RELEASE.md | 在发布级文档中同步“质量自把关 + 持续改进”设计约束，统一口径。 | 已完成（新增 Quality Closed-Loop Contract 节） | 2026-03-06 |
 | 元数据新增质量契约产物与验收检查 | config/deployment_release.yaml | 将质量契约转为机器可读项，支持后续自动化校验与追踪。 | 已完成（新增 quality_contract_outputs/constraints 与 rg 验收项） | 2026-03-06 |
+
+## 27. 执行阻塞与“假完成”P0热修留痕（2026-03-06）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| Stage4 新增完成态硬门禁（execution_proof） | scripts/run_brain_trust_review.sh | 解决“返回成功但未落地产物”问题，禁止仅凭调用返回标记完成。 | 已完成（proof 不通过强制降级，失败码 `completion_without_artifact`） | 2026-03-06 |
+| 队列 complete 新增 proof 参数与强制校验 | scripts/pangu_task_scheduler.sh | 防止 `execution_heavy` 任务在无关键产物时误标 `completed`。 | 已完成（`--result success` 需 proof；否则自动转 failed） | 2026-03-06 |
+| Stage4 失败诊断写回 parse_diagnostics | scripts/run_brain_trust_review.sh | 让调度失败与执行失败进入统一结构化诊断，不再静默失败。 | 已完成（新增 `stage4:*` 与 `scheduler:*` 诊断条目） | 2026-03-06 |
+| Stage4 失败/降级写入路由流水 | scripts/run_brain_trust_review.sh;~/.openclaw/workspace/memory/ROUTING_DECISIONS.jsonl | 提升“会分配但不达成”的可追踪性。 | 已完成（新增 delegate/queue/error_code 结构化留痕） | 2026-03-06 |
+| main 委派 SOP 命令纠错 | ~/.openclaw/workspace/TOOLS.md;~/.openclaw/workspace/AGENTS.md | 解决 `openclaw session(s) spawn` 在当前 CLI 不存在导致的委派失败。 | 已完成（统一改为 `openclaw agent --agent <id> --message ...` 的可执行命令） | 2026-03-06 |
+| 监控任务投递与判定修复 | ~/.openclaw/cron/jobs.json（热修直改+gateway重载） | 解决 `delivery=none` 导致“监控自说自话”，并更新联合判定提示词。 | 部分完成（`delivery.mode` 已切 `announce`，旧停止任务已禁用；但 run history 仍出现 `not-delivered`，需继续排查通道投递链） | 2026-03-06 |
+| 监控链路剩余问题留痕 | ~/.openclaw/cron/runs/b8735aa6-0b7d-4613-97bf-c15db61fa9d3.jsonl | 实际运行出现“执行成功但未投递”，需保留风险可追踪证据。 | 已记录（246 次中 245 次 `deliveryStatus=not-delivered`） | 2026-03-06 |
+| 通道运行态异常留痕 | `openclaw health --json`;`openclaw channels status --probe` | 解释“监控执行成功但无外部消息”根因。 | 已记录（health 显示 Telegram `running=false/tokenSource=none`，probe 临时可用但未稳定） | 2026-03-06 |
+| 模型/鉴权失败证据留痕 | ~/.openclaw/logs/gateway.err.log;~/.openclaw/logs/gateway.log | 解释“任务卡住/超时”根因（非业务逻辑）。 | 已记录（存在 `OAuth token refresh failed`、`No API key found`、`lane wait exceeded`） | 2026-03-06 |
+| Agent 初始化未完成留痕 | `openclaw status --json` | 解释“已分配但迟迟不执行”在多团队下的系统性阻塞。 | 已记录（`bootstrapPendingCount=16`，含 main/pangu/luban 等） | 2026-03-06 |
+
+## 28. 多团队自治MVP（可靠性优先）修订留痕（2026-03-06）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 业务产物路径契约落地（3_ClawDocs） | config/brain_trust_config.yaml;scripts/validate_docs_path_policy.sh;scripts/run_brain_trust_review.sh | 解决业务产物仍落仓库 `reviews/`、路径无约束问题。 | 已完成（默认输出改为 `/Volumes/TB512/3_ClawDocs/<team>/review/<yyyymm>/`，非合规路径会拦截） | 2026-03-06 |
+| 产物台账机制落地 | scripts/register_artifact_index.sh;scripts/run_brain_trust_review.sh | 解决产物不可检索、不可审计问题。 | 已完成（关键产物自动写入 `artifact_index.jsonl`） | 2026-03-06 |
+| 验收职责与产物契约落地 | scripts/run_brain_trust_review.sh;03_Review_Report_Template.md;01_Review_Workflow.md | 明确“有人验收”，避免执行完成语义漂移。 | 已完成（新增 `acceptance_report.json`，`reviewer=braintrust_compliance`） | 2026-03-06 |
+| 质量门禁运行态补齐 | scripts/run_brain_trust_review.sh;config/brain_trust_config.yaml | 将 Stage5 从设计稿延伸到运行产物层。 | 已完成（新增 `quality_gate_report.json`，失败标记 `blocked`） | 2026-03-06 |
+| 监控/CLI 契约对齐 | 00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;~/.openclaw/workspace/AGENTS.md;~/.openclaw/workspace/TOOLS.md | 修正 `process list` 不存在导致监控误判。 | 已完成（统一改为 `openclaw sessions --all-agents --active 30 --json`） | 2026-03-06 |
+| 知识治理主责分离落地 | ~/.openclaw/workspaces/wenquxing/*;~/.openclaw/workspaces/knowledge_manager/* | 解决“谁维护画像”责任不清。 | 已完成（`wenquxing` 主写入，`knowledge_manager` 审计治理） | 2026-03-06 |
+| 验收角色规则实化 | ~/.openclaw/workspaces/braintrust_compliance/* | 解决“审核后谁验收”缺口。 | 已完成（验收SOP与 `acceptance_report` 输出约束已落盘） | 2026-03-06 |
+| 发布机制与文档一致性更新 | README.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;DEPLOYMENT_CHANGELOG.md;release/release_manifest.txt;docs/TEAM_STORAGE_POLICY.md | 保证 AI/人类后续按同一口径迭代与发布。 | 已完成（版本升级到 `v1.5.0`，新增存储规范文档与脚本白名单） | 2026-03-06 |
+
+## 29. 文曲星/学者场景补齐与角色覆盖修订留痕（2026-03-06）
+
+| 变更项 | 文件 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 宪章新增学习治理与通知闭环硬约束 | 00_Brain_Trust_Charter.md | 将“文曲星学习计划”从建议升级为可审查契约，明确 `scholar` 唯一学习入口与 `feige_notifier` 通知职责。 | 已完成（新增 5.7 条款，明确角色边界、学习节奏、失败阻断与必备产物） | 2026-03-06 |
+| 宪章新增开源学习评分与入库门槛 | 00_Brain_Trust_Charter.md | 防止学习源“只收集不筛选”，统一优秀项目评估标准。 | 已完成（新增 `project_score` 模型与 `>=70` 入库门槛） | 2026-03-06 |
+| 工作流新增 Scholar 每日闭环 | 01_Review_Workflow.md | 将学习任务纳入“学习->审查->验收->通知”稳定链路，补足 4:00 通知与回执要求。 | 已完成（新增 Scholar Learning Loop、必备产物与失败恢复规则） | 2026-03-06 |
+| 审查入口新增 Scholar 检查项 | 00_START_REVIEW_HERE.md | 让后续方案评审可直接判定学习体系是否合规可落地。 | 已完成（新增 `scholar/feige_notifier/project_score/QMD` 检查项） | 2026-03-06 |
+| 发布级契约新增 Scholar 学习条款与 K1-K3 严格测试 | DEPLOYMENT_RELEASE.md | 把学习体系从“运维经验”提升为“发布契约”，便于跨环境复制和验收。 | 已完成（新增 Scholar Learning Contract 与 K1/K2/K3 测试门槛） | 2026-03-06 |
+| 元数据新增学习契约字段与验收检查 | config/deployment_release.yaml | 将学习角色、产物、约束机器可读化，支持自动一致性检查。 | 已完成（新增 topology/required_artifacts/constraints 与 rg 验收条目） | 2026-03-06 |
+| 本轮边界声明（不施工） | 本章节（留痕） | 避免“运维期方案修订”和“Claw 运行态变更”边界混淆。 | 已完成（本轮仅改仓库设计与测试文档，未改 `~/.openclaw/*`） | 2026-03-06 |
+
+## 30. 文曲星/学者施工落地留痕（2026-03-06）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增实体角色 `scholar` 与 `feige_notifier` | `~/.openclaw/openclaw.json`;`~/.openclaw/workspaces/scholar/*`;`~/.openclaw/workspaces/feige_notifier/*` | 将设计层角色落地为可执行 Agent，消除“有方案无实体”缺口。 | 已完成（`openclaw agents list` 可见两角色，且带身份标识） | 2026-03-06 |
+| 学习子团队从模板改为实体 SOP | `~/.openclaw/workspaces/km_collector/*`;`~/.openclaw/workspaces/km_organizer/*`;`~/.openclaw/workspaces/km_indexer/*` | 解决 `km_*` 角色“模板化、无明确职责”问题。 | 已完成（AGENTS/TOOLS 已绑定采集、评分、索引职责与输出） | 2026-03-06 |
+| `main` 路由新增 `knowledge_learning -> scholar` | `~/.openclaw/workspace/AGENTS.md`;`~/.openclaw/workspace/SOUL.md`;`~/.openclaw/workspace/TOOLS.md` | 保证学习请求单入口，不再打散直连内部角色。 | 已完成（主路由规则与委派SOP已写入） | 2026-03-06 |
+| 学习与通知模型链落地 | `~/.openclaw/openclaw.json`（agent级 model 对象） | 避免全局 defaults 串改导致角色模型漂移。 | 已完成（`scholar`=`zai/glm-5`；`feige_notifier`=`gemini-2.0-flash`；均含3级fallback） | 2026-03-06 |
+| 权限最小可用放开（审批仍 ask） | `~/.openclaw/exec-approvals.json` | 保障学习链路可调用 `notebooklm/qmd/openclaw`，但不放开高危自动执行。 | 已完成（`scholar/wenquxing/knowledge_manager/km_*` 与 `feige_notifier` allowlist 已落地） | 2026-03-06 |
+| 新增学习定时任务 | OpenClaw cron jobs: `Scholar Daily Learning Review 04:00`;`Scholar Idle Learning 2h` | 将“每日课题+04:00审查后通知+空闲学习”转为系统定时执行。 | 已完成（`openclaw cron list` 可见两任务启用） | 2026-03-06 |
+| 仓库部署脚本同步新角色 | `scripts/bootstrap_brain_trust.sh`;`scripts/validate_brain_trust_env.sh`;`config/deployment_release.yaml`;`roles/scholar/*`;`roles/feige_notifier/*` | 保障后续跨Claw复制部署不漏角色、不漏校验。 | 已完成（bootstrap required roles 与 env 校验均已包含新角色） | 2026-03-06 |
+| 施工风险记录：并行写配置会互相覆盖 | OpenClaw CLI 施工过程 | 实测并行执行 `agents/models/set-identity` 会发生配置覆盖。 | 已闭环（改为串行写入并复核最终状态） | 2026-03-06 |
+
+## 31. 施工收口与严格测试补充留痕（2026-03-06）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 修复 env 校验对 Agent 存在性的误判 | `scripts/validate_brain_trust_env.sh` | `openclaw agents list` 输出形态变化导致仅靠文本匹配容易误报缺角色。 | 已完成（改为优先 `--json` 解析 `id`，文本模式仅作兜底） | 2026-03-06 |
+| 修复回归脚本假环境缺角色 | `scripts/test_run_brain_trust_review_regression.sh` | 新增 `scholar/feige_notifier` 后，fake agents 列表未同步导致回归假失败。 | 已完成（补齐 fake 列表；回归脚本通过） | 2026-03-06 |
+| 全量回归复验 | `scripts/test_run_brain_trust_review_regression.sh` | 确认新增角色与校验逻辑修复后不引入回归。 | 已完成（输出 `All regression checks passed.`） | 2026-03-06 |
+| 真实 E2E 跑通（外置盘落盘） | `/Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/*` | 验证“不是只改文档”，施工链路可真实产出。 | 已完成（`run_brain_trust_review.sh --local` 产物齐全，`structured_summary.json` 可解析，`artifact_index.jsonl` 有台账记录） | 2026-03-06 |
+| Scholar 无外发 dry-run 冒烟 | `scholar` 运行态 + `/Volumes/TB512/3_ClawDocs/team-brain-trust/*` | 验证学习角色可真实生成学习产物并更新台账。 | 已完成（学习5类产物已落盘；通知链路按 dry-run 跳过） | 2026-03-06 |
+| Scholar fallback 链修正 | `~/.openclaw/openclaw.json`（agent `scholar`） | 发现 fallback 漂移为重复项，缺少 Google 后补。 | 已完成（主模型 `zai/glm-5`，fallback: `openai-codex/gpt-5.3-codex -> google-gemini-cli/gemini-3.1-pro-preview -> bailian/qwen3.5-plus`） | 2026-03-06 |
+
+### 31.1 路径策略与台账格式补充（2026-03-06）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| Scholar 存储规则强化为 `custom-learning/<yyyymm>` | `~/.openclaw/workspaces/scholar/AGENTS.md`;`~/.openclaw/workspaces/scholar/TOOLS.md`;`roles/scholar/AGENTS.md`;`roles/scholar/TOOLS.md` | 纠正学习产物散落目录，避免与 3_ClawDocs 路径治理冲突。 | 已完成（复验产物落在 `/Volumes/TB512/3_ClawDocs/team-brain-trust/custom-learning/202603/`） | 2026-03-06 |
+| Scholar 台账格式现状记录 | `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/202603/artifact_index.jsonl` | Scholar dry-run 追加的是 `run_id` 聚合记录，不是标准逐文件字段结构。 | 已记录（当前可追溯但格式不统一，后续需对齐 `register_artifact_index.sh` 标准字段） | 2026-03-06 |
+
+### 31.2 台账标准化收口（2026-03-06）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增历史台账规范化脚本 | `scripts/normalize_artifact_index.sh` | 将历史 `run_id` 聚合行转换为标准逐文件字段，消除格式漂移。 | 已完成（`artifact_index.jsonl` 已迁移并保留 `.bak` 备份） | 2026-03-06 |
+| 新增台账格式校验脚本 | `scripts/validate_artifact_index_format.sh` | 建立可执行门禁，防止后续写入非标准结构。 | 已完成（校验通过，字段与路径均合规） | 2026-03-06 |
+| 强化注册脚本 artifact 枚举校验 | `scripts/register_artifact_index.sh` | 防止写入 `learning_topic_plan` 等非法 artifact 分类。 | 已完成（仅允许 `review/execution/deploy/release/evidence/ops/custom-*`） | 2026-03-06 |
+| Scholar 台账规则升级 | `~/.openclaw/workspaces/scholar/AGENTS.md`;`~/.openclaw/workspaces/scholar/TOOLS.md`;`roles/scholar/AGENTS.md`;`roles/scholar/TOOLS.md` | 让学习产物与台账语义一致，固定使用 `--artifact custom-learning`。 | 已完成（实测新写入为标准字段，无 `run_id` 聚合行） | 2026-03-06 |
+
+## 32. 任务台账生命周期与验收回写落地留痕（2026-03-06）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增统一任务台账脚本 `task_ledger.sh` | scripts/task_ledger.sh | 补齐“任务发布/执行/审核/验收/回流”可追踪状态机，避免仅靠口头完成。 | 已完成（支持 `create/transition/get/list`，强制状态机与回流路径） | 2026-03-06 |
+| 新增台账状态机单测 | scripts/tests/test_task_ledger.sh | 防止状态机回归，保证 `acceptance -> in_progress` 回流可执行。 | 已完成（测试输出 `task_ledger tests passed`） | 2026-03-06 |
+| 主流程接入台账自动回写 | scripts/run_brain_trust_review.sh | 让 Stage1/3/5 自动写生命周期，不再依赖人工登记。 | 已完成（自动回写 `published/assigned/in_progress/review/acceptance/done`） | 2026-03-06 |
+| 验收阻断自动回流落地 | scripts/run_brain_trust_review.sh | 解决“验收 blocked 但任务状态仍显示完成”的假完成问题。 | 已完成（`acceptance_report.status=blocked` 时强制回写 `in_progress` + `reopen_actions`） | 2026-03-06 |
+| 新增验收回写联动测试 | scripts/tests/test_acceptance_gate.sh | 验证 pass/blocked 两条路径的台账状态联动正确。 | 已完成（测试输出 `acceptance gate tests passed`） | 2026-03-06 |
+| 新增接口绑定强校验脚本 | scripts/check_interface_bindings.sh | 解决 `openclaw agents bindings` 仅支持 list 时“有路由规则但无可达绑定”的隐性风险。 | 已完成（可在部署阶段 fail-fast 并给出修复指引） | 2026-03-06 |
+| 部署与发布契约同步 | 01_Review_Workflow.md;00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;release/release_manifest.txt | 将台账脚本与验收测试纳入标准发布与验收链，避免文档-实现脱节。 | 已完成（新增命令与契约检查项） | 2026-03-06 |
+| 全量回归复验 | scripts/test_run_brain_trust_review_regression.sh | 确认新增台账回写不破坏既有 Stage1-5 与评分/路由逻辑。 | 已完成（输出 `All regression checks passed.`） | 2026-03-06 |

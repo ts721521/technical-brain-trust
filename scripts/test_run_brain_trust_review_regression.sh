@@ -9,6 +9,9 @@ tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
 
 source "${ENV_EXAMPLE}"
+mkdir -p "${tmp_dir}/docs_root"
+export BT_DOCS_ROOT="${tmp_dir}/docs_root"
+export BT_TEAM_ID="team-brain-trust"
 
 mkdir -p "${tmp_dir}/bin"
 export PATH="${tmp_dir}/bin:${PATH}"
@@ -82,6 +85,13 @@ Agents:
 - critic
 - innovator
 - pangu
+- luban
+- braintrust_compliance
+- wenquxing
+- knowledge_manager
+- rd_lead
+- scholar
+- feige_notifier
 TXT
   exit 0
 fi
@@ -300,7 +310,12 @@ run_case() {
   local proposal="$2"
   local out_dir="$3"
 
-  BT_TEST_MODE="${mode}" BT_SKIP_MODEL_SYNC="true" "${RUN_SCRIPT}" --proposal "${proposal}" --out "${out_dir}" >/dev/null
+  BT_TEST_MODE="${mode}" \
+  BT_SKIP_MODEL_SYNC="true" \
+  BT_SKIP_DOCS_POLICY="true" \
+  BT_SCHEDULER_MEMORY_DIR="${tmp_dir}/scheduler_memory" \
+  BT_ROUTING_LOG_PATH="${tmp_dir}/routing_decisions.jsonl" \
+  "${RUN_SCRIPT}" --proposal "${proposal}" --out "${out_dir}" >/dev/null
 }
 
 assert_json() {
@@ -340,6 +355,11 @@ assert_json "${out_normal}/structured_summary.json" "all('spark' not in item['mo
 [[ -f "${out_normal}/pangu_execution_plan.md" ]]
 [[ -f "${out_normal}/pangu_execution_report.md" ]]
 [[ -f "${out_normal}/pangu_execution_raw.json" ]]
+[[ -f "${out_normal}/acceptance_report.json" ]]
+[[ -f "${out_normal}/quality_gate_report.json" ]]
+assert_json "${out_normal}/acceptance_report.json" "data['reviewer'] == 'braintrust_compliance'"
+assert_json "${out_normal}/acceptance_report.json" "data['status'] == 'pass'"
+assert_json "${out_normal}/quality_gate_report.json" "data['final_quality_status'] == 'pass'"
 
 out_degraded="${tmp_dir}/out_degraded"
 run_case "degraded_fail_innovator" "${short_proposal}" "${out_degraded}"
@@ -377,5 +397,9 @@ assert_json "${out_pangu_fail}/structured_summary.json" "len(data['execution_sum
 assert_json "${out_pangu_fail}/structured_summary.json" "data['scheduling_summary']['status'] in ('dispatched','timeout','rejected','failed','skipped')"
 assert_json "${out_pangu_fail}/structured_summary.json" "data['execution_status'] in ('normal','degraded')"
 [[ -f "${out_pangu_fail}/pangu_execution_raw.json.stderr" ]]
+[[ -f "${out_pangu_fail}/acceptance_report.json" ]]
+[[ -f "${out_pangu_fail}/quality_gate_report.json" ]]
+assert_json "${out_pangu_fail}/acceptance_report.json" "data['status'] == 'blocked'"
+assert_json "${out_pangu_fail}/quality_gate_report.json" "data['final_quality_status'] == 'blocked'"
 
 echo "All regression checks passed."

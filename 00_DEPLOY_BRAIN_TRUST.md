@@ -104,6 +104,9 @@ openclaw approvals get --json
 
 # 2) 可选：真实联调模式（依赖模型/会话状态）
 ./scripts/verify_main_delegate_reliability.sh --mode live --timeout 120
+
+# 3) 接口绑定强校验（CLI 只读模式下的 fail-fast）
+./scripts/check_interface_bindings.sh
 ```
 
 闭环语义：
@@ -111,6 +114,29 @@ openclaw approvals get --json
 - 自动补救：`send -> spawn -> resend`
 - 失败码：`delegate_unreachable|delegate_timeout|delegate_send_failed|delegate_recovered`
 - `execution_heavy` 委派失败仅降级重试，不做 main 强兜底执行
+
+## 监控联合判定（P0热修）
+
+`任务进度汇报` cron 必须满足：
+
+1. `delivery.mode` 不得为 `none`（避免“跑了但不投递”）。
+2. 若使用 `--announce` 投递，`sessionTarget` 必须为 `isolated`（OpenClaw CLI 约束）。
+3. 若要求 `sessionTarget=main`，只能走 `system-event`，不适合此类监控播报。
+4. 判定逻辑必须联合检查：
+   - `openclaw sessions --all-agents --active 30 --json`
+   - `~/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json`
+   - 活跃子会话（非 cron 自身）
+5. 仅当三者都空，才允许返回 `NO_REPLY`。
+
+建议命令（按实际 job id 执行）：
+
+```bash
+openclaw cron edit b8735aa6-0b7d-4613-97bf-c15db61fa9d3 \
+  --session isolated \
+  --announce \
+  --to telegram:6405799758 \
+  --message "请联合检查 openclaw sessions --all-agents --active 30 --json、TASK_QUEUE_STATE 与活跃子会话；仅三者均空返回 NO_REPLY，否则发送简洁进度。"
+```
 
 ## 突发任务排程闭环（execution_heavy 专用）
 
@@ -141,6 +167,32 @@ openclaw approvals get --json
 - `scheduler_spawn_failed`
 - `scheduler_routed`
 
+## 完成态硬门禁（P0热修）
+
+`execution_heavy` 不允许“仅调用成功即 completed”。  
+必须同时满足以下 proof 才能标记完成：
+
+1. 关键产物存在且非空（至少：`pangu_execution_plan.md`、`pangu_execution_report.md`、`pangu_execution_raw.json`、`pangu_execution_summary.json`）。
+2. `pangu_execution_summary.json` 可解析且含核心字段（`implemented_items/deferred_items/retryable_items/failure_reason`）。
+3. 执行 stderr 不含关键失败信号（如 `pangu_execution_failed`、`delegate_unreachable`、`queue_dispatch_timeout`）。
+
+proof 未通过时强制失败并写入：`error_code=completion_without_artifact`。
+
+## 任务台账生命周期（发布/审核/验收/回流）
+
+台账脚本：
+
+```bash
+# 状态机单测
+./scripts/tests/test_task_ledger.sh
+
+# 验收回写联动测试（pass -> done / blocked -> in_progress）
+./scripts/tests/test_acceptance_gate.sh
+```
+
+台账路径（默认）：
+`/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/task_ledger.jsonl`
+
 ## 第零步：加载环境变量并校验
 
 ```bash
@@ -152,15 +204,23 @@ cp config/brain_trust.env.example config/brain_trust.env
 # 2) 按实际模型修改 config/brain_trust.env 后加载
 source config/brain_trust.env
 # OpenAI 硬约束：只允许 openai-codex/gpt-5.3-codex（禁止 spark/其他版本）
+# 业务产物根目录（可覆盖）
+export BT_DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
+export BT_TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
 
 # 3) 校验必填变量 + 配置完整性
 ./scripts/validate_brain_trust_env.sh
 
+# 3.1) 校验业务产物路径策略
+./scripts/validate_docs_path_policy.sh \
+  --docs-root "$BT_DOCS_ROOT" \
+  --out "$BT_DOCS_ROOT/$BT_TEAM_ID/review/$(date +%Y%m)"
+
 # 4) 同步三角色模型分配（主模型 + 3级fallback）
-./scripts/sync_brain_trust_models.sh --apply --record /tmp/bt_model_assignment.json
+./scripts/sync_brain_trust_models.sh --apply --record "$BT_DOCS_ROOT/$BT_TEAM_ID/deploy/$(date +%Y%m)/bt_model_assignment.json"
 
 # 5) 导出可用模型台账（可追溯）
-./scripts/export_available_models.sh --out /tmp/brain_trust_model_inventory
+./scripts/export_available_models.sh --out "$BT_DOCS_ROOT/$BT_TEAM_ID/deploy/$(date +%Y%m)/brain_trust_model_inventory"
 ```
 
 说明：
@@ -576,13 +636,13 @@ source config/brain_trust.env
 ./scripts/run_brain_trust_review.sh \
   --proposal 02_Proposal_Submission_Template.md \
   --depth standard \
-  --out /tmp/brain_trust_e2e
+  --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)
 ```
 
 检查输出目录（应包含 Stage4 产物）：
 
 ```bash
-ls -1 /tmp/brain_trust_e2e
+ls -1 /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)
 ```
 
 期望至少包含：
@@ -599,14 +659,15 @@ ls -1 /tmp/brain_trust_e2e
 - `pangu_execution_raw.json.stderr`（失败时）
 - `summary_report.md`
 - `structured_summary.json`
+- `acceptance_report.json`（`reviewer=braintrust_compliance`）
 
 可选快速检查：
 
 ```bash
-rg -n "stage2_status|stage3_status|stage4_status|final_recommendation|editor_summary|execution_summary|model_routing_summary" /tmp/brain_trust_e2e/structured_summary.json
+rg -n "stage2_status|stage3_status|stage4_status|final_recommendation|editor_summary|execution_summary|model_routing_summary" /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)/structured_summary.json
 
 # 约束检查：结果中不得出现 spark 或其他 OpenAI 版本
-if rg -n "spark|openai-codex/gpt-5\\.[0-24]|openai-codex/gpt-5\\.3-codex-spark" /tmp/brain_trust_e2e/structured_summary.json; then
+if rg -n "spark|openai-codex/gpt-5\\.[0-24]|openai-codex/gpt-5\\.3-codex-spark" /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)/structured_summary.json; then
   echo "发现违规 OpenAI 模型引用，请检查环境变量与路由配置。"
   exit 1
 fi

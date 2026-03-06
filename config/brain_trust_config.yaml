@@ -81,8 +81,26 @@ runtime:
 
 # 输出存储
 output:
-  base_path: "reviews/"                  # 审查结果存储根目录
-  structure: "reviews/<timestamp>/"      # 每次审查创建子目录
+  docs_root: "/Volumes/TB512/3_ClawDocs" # 业务产物根目录（可被 BT_DOCS_ROOT 覆盖）
+  team_id: "team-brain-trust"            # 默认团队标识
+  path_policy:
+    max_depth_after_root: 3              # docs_root 后最多三级：team/artifact/yyyymm
+    enforce_file_in_leaf_dir: true       # 文件必须落在第3层目录
+    team_name_pattern: "^team-[a-z0-9]+(-[a-z0-9]+)*$"
+    artifact_allowlist:
+      - "review"
+      - "execution"
+      - "deploy"
+      - "release"
+      - "evidence"
+      - "ops"
+      - "custom-<kebab>"
+    file_name_pattern: "^[a-z0-9]+(-[a-z0-9]+)*-[0-9]{8}-[0-9]{6}\\.[a-z0-9]+$"
+  index_file_policy:
+    enabled: true
+    relative_path: "ops/<yyyymm>/artifact_index.jsonl"
+  base_path: "reviews/"                  # deprecated: 仅历史兼容，不作为默认输出路径
+  structure: "reviews/<timestamp>/"      # deprecated: 仅历史兼容
   files:
     - "architect_review.md"
     - "critic_review.md"
@@ -97,6 +115,8 @@ output:
     - "pangu_execution_raw.json.stderr"
     - "summary_report.md"                # 合成报告
     - "structured_summary.json"          # 结构化摘要（机读）
+    - "acceptance_report.json"           # 验收结果（braintrust_compliance）
+    - "quality_gate_report.json"         # 质量门禁结果（QSGP）
 
 # 开源方案推荐标准
 opensource_recommendation:

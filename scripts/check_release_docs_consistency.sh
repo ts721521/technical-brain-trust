@@ -58,6 +58,7 @@ target_files = [
     root / "docs" / "RELEASE_OVERVIEW.md",
     root / "docs" / "AI_RELEASE_PROTOCOL.md",
     root / "docs" / "HUMAN_RELEASE_RUNBOOK.md",
+    root / "docs" / "TEAM_STORAGE_POLICY.md",
 ]
 
 missing = []
@@ -88,12 +89,13 @@ require_file "DEPLOYMENT_RELEASE.md"
 require_file "docs/RELEASE_OVERVIEW.md"
 require_file "docs/AI_RELEASE_PROTOCOL.md"
 require_file "docs/HUMAN_RELEASE_RUNBOOK.md"
+require_file "docs/TEAM_STORAGE_POLICY.md"
 
 version="$(extract_release_version || true)"
 if [[ -z "${version}" ]]; then
   add_failure "cannot parse release_version from config/deployment_release.yaml"
 else
-  for f in "DEPLOYMENT_RELEASE.md" "docs/RELEASE_OVERVIEW.md" "docs/AI_RELEASE_PROTOCOL.md" "docs/HUMAN_RELEASE_RUNBOOK.md"; do
+  for f in "DEPLOYMENT_RELEASE.md" "docs/RELEASE_OVERVIEW.md" "docs/AI_RELEASE_PROTOCOL.md" "docs/HUMAN_RELEASE_RUNBOOK.md" "docs/TEAM_STORAGE_POLICY.md"; do
     if [[ -f "${ROOT_DIR}/${f}" ]] && ! rg -Fq "${version}" "${ROOT_DIR}/${f}"; then
       add_failure "version mismatch: ${f} does not contain ${version}"
     fi
@@ -106,12 +108,13 @@ check_core_commands "${ROOT_DIR}/docs/RELEASE_OVERVIEW.md" "docs/RELEASE_OVERVIE
 check_core_commands "${ROOT_DIR}/docs/AI_RELEASE_PROTOCOL.md" "docs/AI_RELEASE_PROTOCOL.md"
 check_core_commands "${ROOT_DIR}/docs/HUMAN_RELEASE_RUNBOOK.md" "docs/HUMAN_RELEASE_RUNBOOK.md"
 
-if ! check_links_exist >/tmp/check_release_docs_links.err 2>&1; then
+tmp_err="$(mktemp)"
+if ! check_links_exist >"${tmp_err}" 2>&1; then
   while IFS= read -r line; do
     [[ -n "${line}" ]] && add_failure "broken link: ${line}"
-  done </tmp/check_release_docs_links.err
+  done <"${tmp_err}"
 fi
-rm -f /tmp/check_release_docs_links.err
+rm -f "${tmp_err}"
 
 if (( ${#failures[@]} > 0 )); then
   echo "release docs consistency check failed:" >&2

@@ -15,7 +15,7 @@ Usage: bootstrap_luban_role.sh [options]
 Options:
   --root <abs_path>         Project root (default: script parent root)
   --workspace <abs_path>    LuBan workspace path (default: ~/.openclaw/workspaces/luban)
-  --report <abs_path>       Output report json (default: /tmp/luban_bootstrap_report.json)
+  --report <abs_path>       Output report json (default: <docs_root>/team-brain-trust/ops/<yyyymm>/luban-bootstrap-<ts>.json)
   --dry-run                 Print intended actions only
   --non-interactive         Pass --non-interactive when adding agent
   -h, --help                Show help
@@ -55,6 +55,16 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${REPORT_PATH}" == "/tmp/luban_bootstrap_report.json" ]]; then
+  docs_root="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
+  team_id="${BT_TEAM_ID:-team-brain-trust}"
+  yyyymm="$(date +%Y%m)"
+  ts="$(date +%Y%m%d-%H%M%S)"
+  REPORT_PATH="${docs_root}/${team_id}/ops/${yyyymm}/luban-bootstrap-${ts}.json"
+fi
+
+mkdir -p "$(dirname "${REPORT_PATH}")"
 
 ROLE_DIR="${ROOT_DIR}/roles/luban"
 for f in IDENTITY.md SOUL.md AGENTS.md TOOLS.md templates/team_blueprint.md templates/team_agent_contract.json templates/team_model_assignment.json; do

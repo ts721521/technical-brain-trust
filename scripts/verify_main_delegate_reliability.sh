@@ -11,7 +11,7 @@ Usage: verify_main_delegate_reliability.sh [options]
 
 Options:
   --mode <mock|live>      Verification mode (default: mock)
-  --out <path>            Report output path (default: /tmp/delegate_reliability_report.json)
+  --out <path>            Report output path (default: <docs_root>/team-brain-trust/evidence/<yyyymm>/delegate-reliability-<ts>.json)
   --timeout <seconds>     Per live scenario timeout (default: 120)
   -h, --help              Show help
 EOF
@@ -33,6 +33,16 @@ while [[ $# -gt 0 ]]; do
       exit 1 ;;
   esac
 done
+
+if [[ "${OUT}" == "/tmp/delegate_reliability_report.json" ]]; then
+  docs_root="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
+  team_id="${BT_TEAM_ID:-team-brain-trust}"
+  yyyymm="$(date +%Y%m)"
+  ts="$(date +%Y%m%d-%H%M%S)"
+  OUT="${docs_root}/${team_id}/evidence/${yyyymm}/delegate-reliability-${ts}.json"
+fi
+
+mkdir -p "$(dirname "${OUT}")"
 
 if [[ "${MODE}" != "mock" && "${MODE}" != "live" ]]; then
   echo "--mode must be mock|live" >&2
@@ -98,6 +108,11 @@ if [[ "${MODE}" == "mock" ]]; then
     "result_status=degraded,error_code=delegate_unreachable,retry_command=present" \
     "result_status=degraded,error_code=delegate_unreachable,retry_command=present" \
     "true"
+  append_result \
+    "completion_proof_gate" \
+    "result=success requires execution proof" \
+    "scheduler_complete_success_without_proof=>failed(error_code=completion_without_artifact)" \
+    "true"
 else
   run_json() {
     local out_file="$1"
@@ -137,10 +152,11 @@ else
     --json --timeout "${TIMEOUT}"
   s3_text="$(extract_payload_text "${s3_json}")"
   if printf "%s" "${s3_text}" | rg -q 'result_status=degraded' && \
-     printf "%s" "${s3_text}" | rg -q 'error_code=delegate_unreachable'; then
-    append_result "delegate_unreachable_degraded" "result_status=degraded,error_code=delegate_unreachable" "${s3_text}" "true"
+     printf "%s" "${s3_text}" | rg -q 'error_code=delegate_unreachable' && \
+     printf "%s" "${s3_text}" | rg -q 'retry_command='; then
+    append_result "delegate_unreachable_degraded" "result_status=degraded,error_code=delegate_unreachable,retry_command=present" "${s3_text}" "true"
   else
-    append_result "delegate_unreachable_degraded" "result_status=degraded,error_code=delegate_unreachable" "${s3_text:-<empty>}" "false"
+    append_result "delegate_unreachable_degraded" "result_status=degraded,error_code=delegate_unreachable,retry_command=present" "${s3_text:-<empty>}" "false"
   fi
 fi
 

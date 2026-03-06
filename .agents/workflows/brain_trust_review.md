@@ -25,6 +25,8 @@ The workflow must produce these files under `output_dir`:
 - `pangu_execution_raw.json`
 - `summary_report.md`
 - `structured_summary.json`
+- `acceptance_report.json`
+- `quality_gate_report.json`
 
 ## Execution Rules
 1. Validate env/config using `scripts/validate_brain_trust_env.sh`.
@@ -45,6 +47,7 @@ The workflow must produce these files under `output_dir`:
 - open-source validation evidence summary
 - complexity reduction summary
 - Stage4 execution summary
+9. Write acceptance result (`acceptance_report.json`) with reviewer `braintrust_compliance`.
 
 ## Non-goals
 - No external adjudication or external routing.

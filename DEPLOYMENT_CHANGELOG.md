@@ -1,5 +1,48 @@
 # Deployment Changelog
 
+## v1.5.0 (2026-03-06)
+
+### Changes
+- Enforced business artifact path policy under `/Volumes/TB512/3_ClawDocs/<team>/<artifact>/<yyyymm>/`.
+- Added docs path validator script: `scripts/validate_docs_path_policy.sh`.
+- Added artifact ledger registration script: `scripts/register_artifact_index.sh`.
+- Updated `run_brain_trust_review.sh` default output to docs root path and integrated path-policy validation.
+- Added acceptance artifact generation `acceptance_report.json` (`reviewer=braintrust_compliance`).
+- Added lifecycle task ledger script `scripts/task_ledger.sh` with strict state machine and reopen flow.
+- Added lifecycle tests:
+  - `scripts/tests/test_task_ledger.sh`
+  - `scripts/tests/test_acceptance_gate.sh`
+- Added interface binding fail-fast checker `scripts/check_interface_bindings.sh` (for list-only CLI binding environments).
+- Integrated task lifecycle writeback into `run_brain_trust_review.sh`:
+  - Stage1 bootstrap: `published -> assigned -> in_progress`
+  - Stage3 completion: `review`
+  - Stage5 acceptance: `acceptance -> done` (pass) or `acceptance -> in_progress` (blocked + reopen actions)
+- Added artifact index append for key outputs (`summary/structured/editor/acceptance/stage4 report`).
+- Updated bootstrap defaults to docs-root deploy path and added `storage_status` in deploy report.
+- Updated release metadata/runtime topology with acceptance owner and persona governance split (`wenquxing` / `knowledge_manager`).
+
+### Compatibility Impact
+- Default output path changed from repo-local `reviews/` to external docs root.
+- Running with non-compliant `--out` now fails unless `BT_SKIP_DOCS_POLICY=true` is explicitly set.
+- Regression script sets `BT_SKIP_DOCS_POLICY=true` for isolated temp-path tests.
+
+### Migration Actions
+- Ensure `/Volumes/TB512/3_ClawDocs` is mounted and writable, or set `BT_DOCS_ROOT` to a writable equivalent.
+- Update environment file with `BT_DOCS_ROOT` and `BT_TEAM_ID`.
+- Re-run validation and bootstrap after updating path policy.
+
+### Verification Evidence
+- `bash -n scripts/validate_docs_path_policy.sh`
+- `bash -n scripts/register_artifact_index.sh`
+- `bash -n scripts/run_brain_trust_review.sh`
+- `bash -n scripts/task_ledger.sh`
+- `bash -n scripts/tests/test_task_ledger.sh`
+- `bash -n scripts/tests/test_acceptance_gate.sh`
+- `bash -n scripts/check_interface_bindings.sh`
+- `scripts/tests/test_task_ledger.sh`
+- `scripts/tests/test_acceptance_gate.sh`
+- `scripts/test_run_brain_trust_review_regression.sh`
+
 ## v1.4.3 (2026-03-05)
 
 ### Changes

@@ -24,8 +24,16 @@ jobs:
           bash -n scripts/sync_brain_trust_models.sh
           bash -n scripts/test_run_brain_trust_review_regression.sh
           bash -n scripts/bootstrap_brain_trust.sh
+          bash -n scripts/validate_docs_path_policy.sh
+          bash -n scripts/register_artifact_index.sh
+          bash -n scripts/task_ledger.sh
+          bash -n scripts/check_interface_bindings.sh
+          bash -n scripts/tests/test_task_ledger.sh
+          bash -n scripts/tests/test_acceptance_gate.sh
 
       - name: Regression suite
         run: |
           chmod +x scripts/*.sh
           ./scripts/test_run_brain_trust_review_regression.sh
+          ./scripts/tests/test_task_ledger.sh
+          ./scripts/tests/test_acceptance_gate.sh

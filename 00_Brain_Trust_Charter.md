@@ -259,6 +259,43 @@
    - `quality_improvement_log.jsonl`
    - `quality_baseline.yaml`
 
+### 5.6 团队接口与验收治理（强制）
+
+1. 每个业务团队必须定义唯一 `interface_agent_id` 作为对外入口，用户不直接触达内部执行 Agent。
+2. `execution_heavy` 任务只允许走“委派 + 队列 + proof gate”路径，不允许文本口头完成。
+3. 验收职责默认由 `braintrust_compliance` 承担，必须输出 `acceptance_report.json`。
+4. 用户画像主责为 `wenquxing`，`knowledge_manager` 仅负责治理与审计，不直接改写主画像。
+
+### 5.7 学习治理与通知闭环（强制）
+
+1. 学习体系必须设唯一接口代理 `scholar`，用户与其他团队仅通过 `scholar` 发起学习任务，不直接编排内部学习子角色。
+2. `scholar` 内部默认编排：`km_collector`（采集）+ `km_organizer`（整理）+ `km_indexer`（索引）+ `wenquxing`（画像写入）。
+3. `knowledge_manager` 只负责治理审计，不参与主画像写入；审计未通过不得进入主知识库。
+4. 对外通知由 `feige_notifier` 负责，统一发送 Telegram/Email；通知必须输出回执，不允许“尝试发送即视为完成”。
+5. 学习节奏固定为：`1 课题/日 + 空闲持续学习 + 日上限 20 来源`，可由人类显式调整。
+6. 每日学习结果默认在凌晨 `04:00` 进入“智囊团审查 -> 合规验收 -> 对外通知”链路。
+7. 学习失败阻断规则：
+   - 源站不可用/限流：必须切源重试并落盘证据；
+   - QMD 更新失败：状态强制 `blocked/degraded`，不得宣告完成；
+   - 智囊团审查 `blocked`：不得写入主知识库；
+   - 通知失败：必须重试并输出 `notification_receipt` 最终状态。
+8. 学习链路设计层必备产物：
+   - `learning_topic_plan-YYYYMMDD-HHMMSS.md`
+   - `source_candidates-YYYYMMDD-HHMMSS.json`
+   - `source_evaluation-YYYYMMDD-HHMMSS.json`
+   - `knowledge_digest-YYYYMMDD-HHMMSS.md`
+   - `qmd_sync_report-YYYYMMDD-HHMMSS.json`
+   - `notification_receipt-YYYYMMDD-HHMMSS.json`
+
+### 5.8 开源学习评分与入库门槛（强制）
+
+1. 推荐项目评分模型固定为：
+   - `project_score = 0.35*活跃度 + 0.25*维护响应 + 0.20*采用度 + 0.10*安全信号 + 0.10*许可兼容`
+2. 入库门槛：
+   - 必须有原文链接与证据；
+   - `project_score >= 70` 才可进入候选知识条目；
+   - `project_score < 70` 仅进入观察池，不得推荐实施。
+
 ---
 
 ## 六、模型选择原则
@@ -268,6 +305,7 @@
 | 多样性 | 三角色必须使用不同主模型，避免单一模型偏见 |
 | 互补性 | 模型能力维度互补 |
 | 可替换 | 模型通过配置指定，可随时替换 |
+| 可用性优先 | 不可见或不可用模型不得作为强依赖主模型 |
 
 ---
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/config/brain_trust.env"
-RECORD_DIR="/tmp/brain_trust_bootstrap_$(date +%Y%m%d_%H%M%S)"
+RECORD_DIR=""
 NON_INTERACTIVE="false"
 DRY_RUN="false"
 SKIP_E2E="false"
@@ -75,6 +75,48 @@ fi
 if [[ ! -f "${ENV_FILE}" ]]; then
   echo "Env file not found: ${ENV_FILE}" >&2
   exit 1
+fi
+
+# Load env early so BT_DOCS_ROOT can drive default record path.
+set +u
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+set -u
+
+read_config_value() {
+  local key="$1"
+  local default_value="$2"
+  python3 - "${ROOT_DIR}/config/brain_trust_config.yaml" "${key}" "${default_value}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+cfg = Path(sys.argv[1])
+target = sys.argv[2]
+default = sys.argv[3]
+text = cfg.read_text(encoding="utf-8") if cfg.exists() else ""
+pattern = r'^\s*' + re.escape(target) + r'\s*:\s*"?([^"\n]+)"?\s*$'
+m = re.search(pattern, text, flags=re.M)
+print(m.group(1).strip() if m else default)
+PY
+}
+
+docs_root="${BT_DOCS_ROOT:-$(read_config_value 'docs_root' '/Volumes/TB512/3_ClawDocs')}"
+team_id="${BT_TEAM_ID:-$(read_config_value 'team_id' 'team-brain-trust')}"
+yyyymm="$(date +%Y%m)"
+if [[ -z "${RECORD_DIR}" ]]; then
+  RECORD_DIR="${docs_root}/${team_id}/deploy/${yyyymm}"
+fi
+
+storage_status="ok"
+if [[ ! -d "${docs_root}" || ! -w "${docs_root}" ]]; then
+  storage_status="docs_root_unavailable"
+fi
+
+if [[ "${storage_status}" != "ok" ]]; then
+  echo "Business docs root unavailable: ${docs_root}" >&2
+  echo "Set BT_DOCS_ROOT to a writable mounted path before bootstrap." >&2
+  exit 2
 fi
 
 mkdir -p "${RECORD_DIR}"
@@ -158,12 +200,6 @@ log "Env: ${ENV_FILE}"
 log "Record dir: ${RECORD_DIR}"
 log "Mode: dry_run=${DRY_RUN}, non_interactive=${NON_INTERACTIVE}, skip_e2e=${SKIP_E2E}, local=${USE_LOCAL}"
 
-# Load env
-set +u
-# shellcheck disable=SC1090
-source "${ENV_FILE}"
-set -u
-
 # 1) preflight
 preflight_log="${RECORD_DIR}/preflight.log"
 if run_cmd_log "preflight" "${preflight_log}" openclaw --version; then
@@ -191,7 +227,7 @@ fi
 
 # 2) agent check/create
 agents_log="${RECORD_DIR}/agents.log"
-roles=(architect critic innovator pangu luban)
+roles=(architect critic innovator pangu luban braintrust_compliance wenquxing knowledge_manager rd_lead scholar feige_notifier)
 if [[ "${status_preflight}" != "failed" ]]; then
   if ! openclaw agents list >"${agents_log}" 2>&1; then
     status_agents="failed"
@@ -200,22 +236,10 @@ if [[ "${status_preflight}" != "failed" ]]; then
     status_agents="complete"
     agents_output="$(cat "${agents_log}")"
     for role in "${roles[@]}"; do
-      workspace="${ROOT_DIR}/roles/${role}"
-      if [[ "${role}" == "pangu" || "${role}" == "luban" ]]; then
-        workspace="${HOME}/.openclaw/workspaces/pangu"
-        if [[ "${role}" == "luban" ]]; then
-          workspace="${HOME}/.openclaw/workspaces/luban"
-        fi
-      fi
+      workspace="${HOME}/.openclaw/workspaces/${role}"
       if [[ ! -d "${workspace}" ]]; then
-        if [[ "${role}" == "pangu" || "${role}" == "luban" ]]; then
-          mkdir -p "${workspace}"
-          printf '[agents] created workspace: %s (%s)\n' "${role}" "${workspace}" >>"${agents_log}"
-        else
-          status_agents="failed"
-          record_failure "agents" "missing role workspace: ${workspace}"
-          continue
-        fi
+        mkdir -p "${workspace}"
+        printf '[agents] created workspace: %s (%s)\n' "${role}" "${workspace}" >>"${agents_log}"
       fi
 
       if printf '%s\n' "${agents_output}" | rg -q -- "- ${role}(\s|$)"; then
@@ -385,7 +409,7 @@ if [[ "${SKIP_E2E}" == "true" ]]; then
 elif [[ "${DRY_RUN}" == "true" ]]; then
   status_e2e="dry_run"
 else
-  e2e_dir="${RECORD_DIR}/e2e_output"
+  e2e_dir="${docs_root}/${team_id}/review/${yyyymm}"
   e2e_log="${RECORD_DIR}/e2e.log"
   proposal_file="${ROOT_DIR}/02_Proposal_Submission_Template.md"
   e2e_cmd=("${ROOT_DIR}/scripts/run_brain_trust_review.sh" --proposal "${proposal_file}" --depth quick --focus "Deployment bootstrap smoke test" --out "${e2e_dir}")
@@ -434,7 +458,7 @@ if command -v openclaw >/dev/null 2>&1; then
   openclaw_version="$(openclaw --version 2>/dev/null | head -n 1 | tr -d '\r')"
 fi
 
-python3 - "${REPORT_FILE}" "${release_version}" "${release_openclaw_compat}" "${openclaw_version}" "${status_preflight}" "${status_agents}" "${status_validation}" "${status_luban_role}" "${status_team_contract}" "${status_model_sync}" "${status_regression}" "${status_execution_chain}" "${status_e2e}" "${e2e_stage4_status}" "${FAILURES_FILE}" "${ARTIFACTS_FILE}" <<'PY'
+python3 - "${REPORT_FILE}" "${release_version}" "${release_openclaw_compat}" "${openclaw_version}" "${status_preflight}" "${status_agents}" "${status_validation}" "${status_luban_role}" "${status_team_contract}" "${status_model_sync}" "${status_regression}" "${status_execution_chain}" "${status_e2e}" "${e2e_stage4_status}" "${storage_status}" "${FAILURES_FILE}" "${ARTIFACTS_FILE}" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -455,6 +479,7 @@ from pathlib import Path
     status_execution_chain,
     status_e2e,
     e2e_stage4_status,
+    storage_status,
     failures_file,
     artifacts_file,
 ) = sys.argv[1:]
@@ -478,7 +503,7 @@ payload = {
     "preflight": {"status": status_preflight},
     "agents": {
         "status": status_agents,
-        "required": ["architect", "critic", "innovator", "pangu", "luban"],
+        "required": ["architect", "critic", "innovator", "pangu", "luban", "braintrust_compliance", "wenquxing", "knowledge_manager", "rd_lead", "scholar", "feige_notifier"],
     },
     "validation": {"status": status_validation},
     "luban": {"status": status_luban_role},
@@ -487,6 +512,7 @@ payload = {
     "regression": {"status": status_regression},
     "execution_chain": {"status": status_execution_chain},
     "e2e": {"status": status_e2e, "stage4_status": e2e_stage4_status},
+    "storage_status": storage_status,
     "artifacts": artifacts,
     "failures": failures,
 }

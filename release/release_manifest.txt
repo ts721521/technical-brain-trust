@@ -20,6 +20,7 @@ DEPLOYMENT_CHANGELOG.md
 docs/RELEASE_OVERVIEW.md
 docs/AI_RELEASE_PROTOCOL.md
 docs/HUMAN_RELEASE_RUNBOOK.md
+docs/TEAM_STORAGE_POLICY.md
 
 config/brain_trust.env.example
 config/brain_trust_config.yaml
@@ -53,3 +54,9 @@ scripts/ensure_scheduler_capacity.sh
 scripts/verify_public_release.sh
 scripts/build_release_branch.sh
 scripts/check_release_docs_consistency.sh
+scripts/validate_docs_path_policy.sh
+scripts/register_artifact_index.sh
+scripts/task_ledger.sh
+scripts/check_interface_bindings.sh
+scripts/tests/test_task_ledger.sh
+scripts/tests/test_acceptance_gate.sh

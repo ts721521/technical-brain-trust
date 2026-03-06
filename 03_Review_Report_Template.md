@@ -200,6 +200,13 @@ final_score = feasibility*0.25 + robustness*0.20 + scalability*0.15
 
 > 注意：智囊团和总编整合角色均不做最终裁决；最终拍板在人类。
 
+## 验收结果（Stage 5）
+
+- 验收角色：`braintrust_compliance`
+- 验收产物：`acceptance_report.json`
+- 验收规则：`execution_heavy` 必须通过 proof gate（关键产物存在 + JSON 可解析 + 无关键错误码）
+- 验收失败：状态必须为 `blocked`，并给出 `reopen_actions[]`
+
 ---
 
 ## 结构化综合摘要（机读）
@@ -323,6 +330,34 @@ final_score = feasibility*0.25 + robustness*0.20 + scalability*0.15
     "token_budget_mode": "advisory",
     "token_budget_exceeded": false
   }
+}
+```
+
+`acceptance_report.json` 示例：
+
+```json
+{
+  "task_id": "20260306_210000",
+  "owner_team": "team-brain-trust",
+  "reviewer": "braintrust_compliance",
+  "status": "pass|blocked",
+  "stage4_status": "complete|degraded|failed|skipped",
+  "evidence": [],
+  "reopen_actions": []
+}
+```
+
+`quality_gate_report.json` 示例：
+
+```json
+{
+  "artifact_id": "20260306_210000",
+  "owner_agent": "pangu",
+  "precheck": {"status": "pass|fail"},
+  "execution_check": {"status": "pass|fail"},
+  "release_check": {"status": "pass|fail"},
+  "blocked_reasons": [],
+  "final_quality_status": "pass|blocked"
 }
 ```
 

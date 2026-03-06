@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.4.2
+# Brain Trust Deployment Release v1.5.0
 
 ## Scope
 
@@ -6,12 +6,16 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.4.2`
+- Release version: `v1.5.0`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
 - Standard chain: Stage1 review -> Stage2 cross review -> Stage3 editor synthesis -> Stage4 pangu execution -> Stage5 quality gate & improvement writeback (design contract)
 - Runtime topology: `main` mixed router -> `luban` architecture orchestration -> `pangu` execution queue scheduler -> `scheduler-*` independent dispatchers
+- Acceptance owner: `braintrust_compliance`
+- Persona owner split: `wenquxing`(主写入) + `knowledge_manager`(治理审计)
+- Learning interface agent: `scholar` (single external entry for knowledge learning tasks)
+- Notification agent: `feige_notifier` (Telegram/Email delivery with receipt)
 - Team model assignment policy: dynamic artifact output (not static deployment matrix)
 
 Source of truth: `config/deployment_release.yaml`
@@ -24,6 +28,9 @@ Source of truth: `config/deployment_release.yaml`
 4. Local env file prepared:
    - `cp config/brain_trust.env.example config/brain_trust.env`
    - edit values if needed (must satisfy policy and validation script).
+5. Business docs root available and writable:
+   - default: `/Volumes/TB512/3_ClawDocs`
+   - or set `BT_DOCS_ROOT` to a writable mounted path.
 
 ## One-Command Deployment
 
@@ -103,6 +110,38 @@ Design artifacts required by this contract:
 - `quality_improvement_log.jsonl`
 - `quality_baseline.yaml`
 
+## Scholar Learning Contract (Design-Level)
+
+This release locks a design-layer learning loop for the knowledge team:
+
+1. `scholar` is the only external interface for learning tasks.
+2. Internal learning execution is orchestrated through:
+   - `km_collector` (source collection)
+   - `km_organizer` (classification and synthesis)
+   - `km_indexer` (index refresh)
+   - `wenquxing` (persona writeback)
+3. Governance and acceptance:
+   - `knowledge_manager` performs audit/governance only
+   - `braintrust` provides review suggestion
+   - `braintrust_compliance` produces acceptance result
+   - `feige_notifier` sends external notifications and writes receipts
+4. Learning cadence:
+   - one topic per day
+   - continuous learning when idle
+   - up to 20 sources/day (default)
+   - review-then-notify at `04:00`
+5. Open-source scoring gate:
+   - `project_score = 0.35*活跃度 + 0.25*维护响应 + 0.20*采用度 + 0.10*安全信号 + 0.10*许可兼容`
+   - score >= 70 for candidate knowledge entries
+   - score < 70 to observation pool only
+6. Required learning artifacts:
+   - `learning_topic_plan-YYYYMMDD-HHMMSS.md`
+   - `source_candidates-YYYYMMDD-HHMMSS.json`
+   - `source_evaluation-YYYYMMDD-HHMMSS.json`
+   - `knowledge_digest-YYYYMMDD-HHMMSS.md`
+   - `qmd_sync_report-YYYYMMDD-HHMMSS.json`
+   - `notification_receipt-YYYYMMDD-HHMMSS.json`
+
 ## GitHub First Publish (public repo)
 
 ```bash
@@ -126,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.4.2
+./scripts/build_release_branch.sh --version v1.5.0
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -164,23 +203,62 @@ git push origin release --tags
 - `bash -n scripts/verify_public_release.sh`
 - `bash -n scripts/build_release_branch.sh`
 - `bash -n scripts/check_release_docs_consistency.sh`
+- `bash -n scripts/validate_docs_path_policy.sh`
+- `bash -n scripts/register_artifact_index.sh`
+- `bash -n scripts/task_ledger.sh`
+- `bash -n scripts/tests/test_task_ledger.sh`
+- `bash -n scripts/tests/test_acceptance_gate.sh`
 
 2. Policy and env validation
 - `source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh`
 - `scripts/validate_team_contract.sh --dir roles/luban/templates`
 - `scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest`
 - `scripts/check_release_docs_consistency.sh`
+- `scripts/validate_docs_path_policy.sh --docs-root /Volumes/TB512/3_ClawDocs --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m)`
+- `scripts/check_interface_bindings.sh`
 
 3. Regression
 - `scripts/test_run_brain_trust_review_regression.sh`
+- `scripts/tests/test_task_ledger.sh`
+- `scripts/tests/test_acceptance_gate.sh`
 
 4. E2E smoke
-- `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /tmp/brain_trust_e2e --local`
+- `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m) --local`
 
 5. Contract checks
 - `structured_summary.json` includes: `stage1_mode`, `model_routing_summary`, `parse_diagnostics`, `score_summary`, `orchestration.stage4_status`, `execution_summary`, `scheduling_summary`.
+- `acceptance_report.json` exists and contains `reviewer=braintrust_compliance` and `status(pass|blocked)`.
+- `quality_gate_report.json` exists and contains `final_quality_status=pass|blocked`.
+- `task_ledger.jsonl` has lifecycle evidence:
+  - `published -> assigned -> in_progress -> review -> acceptance`
+  - pass path reaches `done`
+  - blocked path reopens to `in_progress` with `reopen_actions`
 - Routing/output must not contain `spark` or unsupported OpenAI variants.
 - Stage4 artifacts exist: `pangu_execution_plan.md`, `pangu_execution_report.md`, `pangu_execution_raw.json`.
+- Stage4 completion proof gate is enforced:
+  - success requires non-empty Stage4 artifacts
+  - `pangu_execution_summary.json` is parseable with required fields
+  - stderr has no critical failure signal
+  - otherwise `error_code=completion_without_artifact` and stage4 degrades/fails
+
+6. Runtime monitor checks
+- Cron monitor job must not use `delivery.mode=none`.
+- When using `--announce` delivery, `sessionTarget` must be `isolated` (OpenClaw CLI constraint).
+- If `sessionTarget=main` is required, use `system-event` instead of `--message`.
+- Idle decision must use union check (`openclaw sessions --all-agents --active 30 --json` + queue state + active sub-sessions), not `sessions_list` alone.
+
+7. Scholar strict test phases (design acceptance)
+- K1 role/config consistency:
+  - `scholar` and `feige_notifier` exist in agent list
+  - `scholar` is the only external entry for learning tasks
+  - configured model keys are available
+- K2 learning E2E:
+  - topic generation -> multi-source collection (>=3, includes non-GitHub) -> QMD refresh -> review -> acceptance -> 04:00 notification with receipt
+- K3 failure and recovery:
+  - source failure triggers source switch + evidence
+  - QMD failure forces blocked/degraded (no pseudo completion)
+  - blocked review prevents main knowledge base write
+  - notification failure retries and records final status
 
 ## Failure Recovery
 
@@ -225,6 +303,12 @@ git push origin release --tags
 - Check queue status: `scripts/pangu_task_scheduler.sh stats --queue-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE.jsonl --state-file ~/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json`.
 - If backlog persists, run `scripts/ensure_scheduler_capacity.sh --queue-depth <n> --threshold 6 --registry-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_REGISTRY.json --events-file ~/.openclaw/workspaces/pangu/memory/SCHEDULER_EVENTS.jsonl`.
 - Check `structured_summary.json.scheduling_summary` for `queue_full|queue_dispatch_timeout|scheduler_spawn_failed`.
+12. Completion says success but no real artifacts
+- Check queue record and Stage4 stderr for `completion_without_artifact`.
+- Re-run Stage4 after fixing output generation; do not manually force queue item to `completed`.
+13. Docs root unavailable
+- If `/Volumes/TB512/3_ClawDocs` is unavailable, do not fallback to local disk for business artifacts.
+- Set `BT_DOCS_ROOT=<mounted_writable_path>` and rerun validation/deployment.
 
 ## Why Stage1 is Serial
 
@@ -239,3 +323,4 @@ See `00_DEPLOY_BRAIN_TRUST.md` for expanded manual steps and troubleshooting con
 - [Release Overview](./docs/RELEASE_OVERVIEW.md)
 - [AI Release Protocol](./docs/AI_RELEASE_PROTOCOL.md)
 - [Human Release Runbook](./docs/HUMAN_RELEASE_RUNBOOK.md)
+- [Team Storage Policy](./docs/TEAM_STORAGE_POLICY.md)

@@ -1,4 +1,4 @@
-# Release Overview (v1.4.2)
+# Release Overview (v1.5.0)
 
 ## 1. 机制总览（文字图）
 
@@ -12,6 +12,7 @@
 
 - AI 协议：[AI_RELEASE_PROTOCOL.md](./AI_RELEASE_PROTOCOL.md)
 - 人类手册：[HUMAN_RELEASE_RUNBOOK.md](./HUMAN_RELEASE_RUNBOOK.md)
+- 存储规范：[TEAM_STORAGE_POLICY.md](./TEAM_STORAGE_POLICY.md)
 - 发布元数据：[../config/deployment_release.yaml](../config/deployment_release.yaml)
 - 变更记录：[../DEPLOYMENT_CHANGELOG.md](../DEPLOYMENT_CHANGELOG.md)
 - 发布入口：[../DEPLOYMENT_RELEASE.md](../DEPLOYMENT_RELEASE.md)

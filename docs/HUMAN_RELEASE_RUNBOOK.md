@@ -1,4 +1,4 @@
-# Human Release Runbook (v1.4.2)
+# Human Release Runbook (v1.5.0)
 
 本手册面向人类维护者，用于执行与排障发布流程。
 

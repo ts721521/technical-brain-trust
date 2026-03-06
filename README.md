@@ -28,11 +28,13 @@ Use [DEPLOYMENT_RELEASE.md](./DEPLOYMENT_RELEASE.md) as the only deployment entr
    - `cp config/brain_trust.env.example config/brain_trust.env`
    - edit provider credentials/model IDs as required by release policy
 3. Run bootstrap:
-   - `./scripts/bootstrap_brain_trust.sh --root "$(pwd)" --env-file "$(pwd)/config/brain_trust.env" --record-dir /tmp/brain_trust_bootstrap --non-interactive --local`
+   - `./scripts/bootstrap_brain_trust.sh --root "$(pwd)" --env-file "$(pwd)/config/brain_trust.env" --record-dir /Volumes/TB512/3_ClawDocs/team-brain-trust/deploy/$(date +%Y%m) --non-interactive --local`
 
 E2E output includes:
 - Stage1/2/3 review artifacts
 - Stage4 artifacts: `pangu_execution_plan.md`, `pangu_execution_report.md`, `pangu_execution_raw.json`
+- Acceptance artifact: `acceptance_report.json` (`reviewer=braintrust_compliance`)
+- Business artifacts default to `/Volumes/TB512/3_ClawDocs/<team>/<artifact>/<yyyymm>/`
 
 ## Release Policy
 
@@ -49,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.4.2
+./scripts/build_release_branch.sh --version v1.5.0
 ```
 
 Pre-publish safety gate:
@@ -64,6 +66,7 @@ git switch release
 - [Release Overview](./docs/RELEASE_OVERVIEW.md)
 - [AI Release Protocol](./docs/AI_RELEASE_PROTOCOL.md)
 - [Human Release Runbook](./docs/HUMAN_RELEASE_RUNBOOK.md)
+- [Team Storage Policy](./docs/TEAM_STORAGE_POLICY.md)
 
 ## Repository Layout
 
