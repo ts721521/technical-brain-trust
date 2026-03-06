@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.6
+# Brain Trust Deployment Release v1.6.7
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.6`
+- Release version: `v1.6.7`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.6
+./scripts/build_release_branch.sh --version v1.6.7
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -217,6 +217,7 @@ git push origin release --tags
 - `bash -n scripts/tests/test_runtime_health_audit.sh`
 - `bash -n scripts/tests/test_bootstrap_agent_sessions.sh`
 - `bash -n scripts/tests/test_quality_evolution_compact.sh`
+- `bash -n scripts/tests/test_route_learning_compact.sh`
 - `bash -n scripts/tests/test_mvp_team_closure.sh`
 
 2. Policy and env validation
@@ -234,6 +235,7 @@ git push origin release --tags
 - `scripts/tests/test_runtime_health_audit.sh`
 - `scripts/tests/test_bootstrap_agent_sessions.sh`
 - `scripts/tests/test_quality_evolution_compact.sh`
+- `scripts/tests/test_route_learning_compact.sh`
 - `scripts/tests/test_mvp_team_closure.sh`
 - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
 - `scripts/bootstrap_agent_sessions.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --strict false`
@@ -264,6 +266,8 @@ git push origin release --tags
   - `improvement_backlog-YYYYMMDD-050000.md`
   - `quality_evolution_report-YYYYMMDD-050000.json`
   - `quality_evolution_report-YYYYMMDD-050000.md`
+  - `route_learning_report-YYYYMMDD-050000.json`
+  - `route_learning_report-YYYYMMDD-050000.md`
 - `runtime_health_report` includes `agent_bootstrap.pending_count_actionable` and `pending_agents_actionable` for initialization blockage diagnosis.
 - Model drift report includes primary/fallback diff for: `architect/critic/innovator/pangu/scholar/feige_notifier`.
 - Routing/output must not contain `spark` or unsupported OpenAI variants.

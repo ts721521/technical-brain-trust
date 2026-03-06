@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTER_SCRIPT="${ROOT_DIR}/scripts/register_artifact_index.sh"
 QUALITY_COMPACT_SCRIPT="${ROOT_DIR}/scripts/quality_evolution_compact.sh"
+ROUTE_COMPACT_SCRIPT="${ROOT_DIR}/scripts/route_learning_compact.sh"
 
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
@@ -14,6 +15,9 @@ QUEUE_STATE_FILE="${BT_QUEUE_STATE_FILE:-$HOME/.openclaw/workspaces/pangu/memory
 QUEUE_FAILURE_WINDOW_HOURS="${BT_QUEUE_FAILURE_WINDOW_HOURS:-24}"
 QUALITY_WINDOW_DAYS="${BT_QUALITY_WINDOW_DAYS:-30}"
 QUALITY_BLOCKED_RATE_THRESHOLD="${BT_QUALITY_BLOCKED_RATE_THRESHOLD:-0.20}"
+RUN_ROUTE_COMPACT="${BT_RUN_ROUTE_COMPACT:-true}"
+ROUTING_MEMORY_DIR="${BT_ROUTING_MEMORY_DIR:-$HOME/.openclaw/workspace/memory}"
+ROUTE_WINDOW="${BT_ROUTE_WINDOW:-200}"
 
 usage() {
   cat <<USAGE
@@ -26,6 +30,8 @@ Outputs (daily):
   improvement_backlog-YYYYMMDD-HHMMSS.md
   quality_evolution_report-YYYYMMDD-HHMMSS.json
   quality_evolution_report-YYYYMMDD-HHMMSS.md
+  route_learning_report-YYYYMMDD-HHMMSS.json
+  route_learning_report-YYYYMMDD-HHMMSS.md
 USAGE
 }
 
@@ -84,6 +90,8 @@ topology_md="${out_dir}/team_topology-${run_date}-${SLOT_TIME}.md"
 backlog_md="${out_dir}/improvement_backlog-${run_date}-${SLOT_TIME}.md"
 quality_json="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.json"
 quality_md="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.md"
+route_json="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.json"
+route_md="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.md"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
@@ -633,7 +641,24 @@ if [[ -x "${QUALITY_COMPACT_SCRIPT}" ]]; then
   fi
 fi
 
-python3 - "${runtime_json}" "${backlog_md}" "${quality_json}" "${quality_md}" "${quality_status}" "${QUALITY_BLOCKED_RATE_THRESHOLD}" <<'PY'
+route_status="skipped"
+if [[ "${RUN_ROUTE_COMPACT}" == "true" && -x "${ROUTE_COMPACT_SCRIPT}" ]]; then
+  if [[ -f "${ROUTING_MEMORY_DIR}/ROUTING_DECISIONS.jsonl" ]]; then
+    if "${ROUTE_COMPACT_SCRIPT}" \
+      --memory-dir "${ROUTING_MEMORY_DIR}" \
+      --window "${ROUTE_WINDOW}" \
+      --report-json "${route_json}" \
+      --report-md "${route_md}" >/dev/null; then
+      route_status="generated"
+    else
+      route_status="failed"
+    fi
+  else
+    route_status="missing_decisions"
+  fi
+fi
+
+python3 - "${runtime_json}" "${backlog_md}" "${quality_json}" "${quality_md}" "${quality_status}" "${QUALITY_BLOCKED_RATE_THRESHOLD}" "${route_json}" "${route_md}" "${route_status}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -645,6 +670,9 @@ quality_json_path = Path(sys.argv[3])
 quality_md_path = Path(sys.argv[4])
 quality_status = sys.argv[5]
 blocked_threshold = float(sys.argv[6])
+route_json_path = Path(sys.argv[7])
+route_md_path = Path(sys.argv[8])
+route_status = sys.argv[9]
 
 if not runtime_path.exists():
     raise SystemExit(0)
@@ -677,6 +705,25 @@ elif quality_status == "failed":
     p1_items.append("质量演进报告生成失败，需检查 quality_evolution_compact 脚本执行。")
 
 runtime["quality_evolution"] = quality_summary
+
+route_summary = {
+    "status": route_status,
+    "report_json": str(route_json_path),
+    "report_md": str(route_md_path),
+}
+if route_status == "generated" and route_json_path.exists():
+    try:
+        rdata = json.loads(route_json_path.read_text(encoding="utf-8"))
+        route_summary["delegate_metrics"] = rdata.get("delegate_metrics", {})
+        route_summary["scheduler_metrics"] = rdata.get("scheduler_metrics", {})
+    except Exception as exc:
+        route_summary["status"] = "parse_failed"
+        route_summary["error"] = str(exc)
+        p1_items.append("路由学习报告解析失败，需检查 route_learning_report 产物。")
+elif route_status == "failed":
+    p1_items.append("路由学习汇总失败，需检查 route_learning_compact 脚本执行。")
+
+runtime["route_learning"] = route_summary
 runtime.setdefault("improvement_backlog", {})["p0"] = p0_items
 runtime.setdefault("improvement_backlog", {})["p1"] = p1_items
 runtime_path.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -705,7 +752,7 @@ backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
 if [[ -x "${REGISTER_SCRIPT}" ]]; then
-  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}"; do
+  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}"; do
     [[ -f "${f}" ]] || continue
     "${REGISTER_SCRIPT}" \
       --docs-root "${DOCS_ROOT}" \
@@ -725,3 +772,5 @@ echo "- ${topology_md}"
 echo "- ${backlog_md}" 
 echo "- ${quality_json}"
 echo "- ${quality_md}"
+echo "- ${route_json}"
+echo "- ${route_md}"

@@ -110,6 +110,7 @@ export BT_DOCS_ROOT="${tmp_dir}/docs"
 mkdir -p "${BT_DOCS_ROOT}"
 export BT_TEAM_ID="team-brain-trust"
 export BT_QUEUE_STATE_FILE="${tmp_dir}/queue_state.json"
+export BT_RUN_ROUTE_COMPACT="false"
 
 cat >"${BT_QUEUE_STATE_FILE}" <<'JSON'
 {"items":[{"status":"failed"},{"status":"queued"}]}
@@ -145,6 +146,7 @@ assert obj['agent_bootstrap']['pending_count_raw'] == 2
 assert obj['agent_bootstrap']['pending_count_actionable'] == 2
 assert 'main' in obj['agent_bootstrap']['pending_agents_raw']
 assert obj['quality_evolution']['status'] in ('generated', 'parse_failed')
+assert obj['route_learning']['status'] == 'skipped'
 assert 'improvement_backlog' in obj
 PY
 

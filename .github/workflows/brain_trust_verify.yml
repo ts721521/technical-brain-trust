@@ -39,6 +39,7 @@ jobs:
           bash -n scripts/tests/test_runtime_health_audit.sh
           bash -n scripts/tests/test_bootstrap_agent_sessions.sh
           bash -n scripts/tests/test_quality_evolution_compact.sh
+          bash -n scripts/tests/test_route_learning_compact.sh
           bash -n scripts/tests/test_mvp_team_closure.sh
 
       - name: Regression suite
@@ -50,4 +51,5 @@ jobs:
           ./scripts/tests/test_runtime_health_audit.sh
           ./scripts/tests/test_bootstrap_agent_sessions.sh
           ./scripts/tests/test_quality_evolution_compact.sh
+          ./scripts/tests/test_route_learning_compact.sh
           ./scripts/tests/test_mvp_team_closure.sh

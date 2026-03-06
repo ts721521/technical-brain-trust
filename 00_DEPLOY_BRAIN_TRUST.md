@@ -226,6 +226,13 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
   --window-days 30 \
   --slot-time 050000
 
+# 2.3) 生成路由学习汇总（Route Learning周期视图）
+./scripts/route_learning_compact.sh \
+  --memory-dir ~/.openclaw/workspace/memory \
+  --window 200 \
+  --report-json /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/route_learning_report-$(date +%Y%m%d)-050000.json \
+  --report-md /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/route_learning_report-$(date +%Y%m%d)-050000.md
+
 # 3) 查看定时任务
 crontab -l | rg BT_RUNTIME_AUDIT -n
 ```

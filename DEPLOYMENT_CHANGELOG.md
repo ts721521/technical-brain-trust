@@ -1,5 +1,37 @@
 # Deployment Changelog
 
+## v1.6.7 (2026-03-07)
+
+### Changes
+- Extended route learning pipeline:
+  - `route_learning_compact.sh` now supports optional report outputs:
+    - `--report-json`
+    - `--report-md`
+- Integrated route learning report generation into daily runtime audit:
+  - `runtime_health_audit.sh` now emits:
+    - `route_learning_report-YYYYMMDD-050000.json`
+    - `route_learning_report-YYYYMMDD-050000.md`
+  - runtime report now includes `route_learning` summary block.
+- Added route learning regression test:
+  - `scripts/tests/test_route_learning_compact.sh`
+- Updated CI/release manifest/release metadata/docs for route report contract.
+
+### Compatibility Impact
+- Backward compatible.
+- Daily runtime audit adds two new ops artifacts for route trend visibility.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+- Verify route reports under:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/route_learning_report-*.json`
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/route_learning_report-*.md`
+
+### Verification Evidence
+- `scripts/tests/test_route_learning_compact.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.6 (2026-03-07)
 
 ### Changes

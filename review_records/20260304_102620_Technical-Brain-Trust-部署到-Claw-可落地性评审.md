@@ -794,3 +794,12 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 日报接入质量演进汇总 | `scripts/runtime_health_audit.sh` | 让 05:00 日报自动包含质量趋势，不再需要手工汇总。 | 已完成（新增 `quality_evolution` 段与阈值告警逻辑） | 2026-03-07 |
 | 新增质量汇总测试 | `scripts/tests/test_quality_evolution_compact.sh` | 防止脚本回归导致质量趋势缺失。 | 已完成（测试通过） | 2026-03-07 |
 | CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`docs/*.md` | 保证新增能力可发布、可验收、可复现。 | 已完成（版本推进 `v1.6.6`） | 2026-03-07 |
+
+## 42. 下一阶段继续：路由学习日报工程化留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 路由学习脚本支持产物导出 | `scripts/route_learning_compact.sh` | 原脚本仅回写 `~/.openclaw`，人类无法在 3_ClawDocs 直观看趋势。 | 已完成（新增 `--report-json/--report-md` 输出能力） | 2026-03-07 |
+| 日报接入路由学习报告 | `scripts/runtime_health_audit.sh` | 让 05:00 日报同时覆盖执行健康、质量演进、路由演进。 | 已完成（新增 `route_learning_report-*.json/.md` 与 `runtime_health_report.route_learning` 字段） | 2026-03-07 |
+| 新增路由学习回归测试 | `scripts/tests/test_route_learning_compact.sh` | 防止后续修改导致路由趋势报告失效。 | 已完成（测试通过） | 2026-03-07 |
+| CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`docs/*.md` | 保证“新增能力=新增验收”，防止发布链路遗漏。 | 已完成（版本推进 `v1.6.7`） | 2026-03-07 |

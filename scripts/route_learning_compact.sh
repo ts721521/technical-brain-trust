@@ -3,6 +3,8 @@ set -euo pipefail
 
 MEMORY_DIR="${HOME}/.openclaw/workspace/memory"
 WINDOW=200
+REPORT_JSON=""
+REPORT_MD=""
 
 usage() {
   cat <<'EOF'
@@ -11,6 +13,8 @@ Usage: route_learning_compact.sh [options]
 Options:
   --memory-dir <path>    Memory directory (default: ~/.openclaw/workspace/memory)
   --window <n>           Max recent records to aggregate (default: 200)
+  --report-json <path>   Optional JSON report output path
+  --report-md <path>     Optional Markdown report output path
   -h, --help             Show help
 EOF
 }
@@ -21,6 +25,10 @@ while [[ $# -gt 0 ]]; do
       MEMORY_DIR="$2"; shift 2 ;;
     --window)
       WINDOW="$2"; shift 2 ;;
+    --report-json)
+      REPORT_JSON="$2"; shift 2 ;;
+    --report-md)
+      REPORT_MD="$2"; shift 2 ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -43,13 +51,16 @@ mkdir -p "${MEMORY_DIR}"
 # Routing Memory
 EOF
 
-python3 - "${DECISIONS}" "${MEMO}" "${WINDOW}" <<'PY'
+python3 - "${DECISIONS}" "${MEMO}" "${WINDOW}" "${REPORT_JSON}" "${REPORT_MD}" <<'PY'
 import json
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
+from pathlib import Path
 
 decisions_path, memo_path, window_str = sys.argv[1], sys.argv[2], sys.argv[3]
+report_json = sys.argv[4].strip()
+report_md = sys.argv[5].strip()
 window = int(window_str)
 
 records = []
@@ -175,6 +186,80 @@ for route, c in top_routes:
 
 with open(memo_path, "a", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
+
+summary = {
+    "generated_at": datetime.now().isoformat(timespec="seconds"),
+    "records_used": len(recent),
+    "status_distribution": dict(status_counter),
+    "top_intent_classes": intent_counter.most_common(5),
+    "delivery_modes": dict(delivery_mode_counter),
+    "delegate_metrics": {
+        "delegate_total": delegate_total,
+        "delegate_success_rate": round(delegate_success_rate, 2),
+        "delegate_recovery_rate": round(delegate_recovery_rate, 2),
+        "delegate_unreachable_count": delegate_unreachable,
+    },
+    "scheduler_metrics": {
+        "queued_total": queued_total,
+        "queued_ratio": round(queued_ratio, 2),
+        "avg_queue_wait_ms": avg_queue_wait_ms,
+        "scale_spawn_count": scale_spawn_count,
+        "scheduler_routed_count": scheduler_routed_count,
+    },
+    "error_codes": dict(error_code_counter),
+    "top_routes": [
+        {
+            "route": route,
+            "total": c,
+            "success_rate": round((route_success[route]["success"] / route_success[route]["total"] * 100.0), 2)
+            if route_success[route]["total"]
+            else 0.0,
+        }
+        for route, c in top_routes
+    ],
+}
+
+if report_json:
+    p = Path(report_json)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+if report_md:
+    p = Path(report_md)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    md = [
+        "# Route Learning Report",
+        "",
+        f"- Generated at: `{summary['generated_at']}`",
+        f"- Records used: `{summary['records_used']}`",
+        "",
+        "## Status Distribution",
+    ]
+    for k, v in summary["status_distribution"].items():
+        md.append(f"- {k}: {v}")
+    md.append("")
+    md.append("## Delegate Metrics")
+    dm = summary["delegate_metrics"]
+    md.append(f"- delegate_total: {dm['delegate_total']}")
+    md.append(f"- delegate_success_rate: {dm['delegate_success_rate']}%")
+    md.append(f"- delegate_recovery_rate: {dm['delegate_recovery_rate']}%")
+    md.append(f"- delegate_unreachable_count: {dm['delegate_unreachable_count']}")
+    md.append("")
+    md.append("## Scheduler Metrics")
+    sm = summary["scheduler_metrics"]
+    md.append(f"- queued_total: {sm['queued_total']}")
+    md.append(f"- queued_ratio: {sm['queued_ratio']}%")
+    md.append(f"- avg_queue_wait_ms: {sm['avg_queue_wait_ms']}")
+    md.append(f"- scale_spawn_count: {sm['scale_spawn_count']}")
+    md.append(f"- scheduler_routed_count: {sm['scheduler_routed_count']}")
+    md.append("")
+    md.append("## Top Routes")
+    if summary["top_routes"]:
+        for row in summary["top_routes"]:
+            md.append(f"- {row['route']}: total={row['total']}, success_rate={row['success_rate']}%")
+    else:
+        md.append("- 无")
+    p.write_text("\n".join(md) + "\n", encoding="utf-8")
 
 print(f"compacted {len(recent)} records into {memo_path}")
 PY
