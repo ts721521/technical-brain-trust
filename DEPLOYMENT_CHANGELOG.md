@@ -1,5 +1,36 @@
 # Deployment Changelog
 
+## v1.6.8 (2026-03-07)
+
+### Changes
+- Added runtime backlog sync script:
+  - `scripts/sync_runtime_backlog_tasks.sh`
+  - syncs `runtime_health_report.improvement_backlog (p0/p1)` into task ledger with stable dedup task IDs.
+- Integrated backlog sync into daily runtime audit:
+  - `scripts/runtime_health_audit.sh` now emits:
+    - `backlog_sync_report-YYYYMMDD-050000.json`
+  - runtime report now includes `backlog_sync` section.
+- Added backlog sync regression coverage:
+  - `scripts/tests/test_sync_runtime_backlog_tasks.sh`
+  - updated `scripts/tests/test_runtime_health_audit.sh` assertions.
+- Updated CI/release manifest/release metadata/docs for backlog sync contract.
+
+### Compatibility Impact
+- Backward compatible.
+- Daily runtime audit adds one extra ops artifact for P0/P1 task lifecycle automation.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+  - `scripts/sync_runtime_backlog_tasks.sh --runtime-report /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/runtime_health_report-$(date +%Y%m%d)-050000.json --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --yyyymm $(date +%Y%m)`
+- Verify outputs under:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/backlog_sync_report-*.json`
+
+### Verification Evidence
+- `scripts/tests/test_sync_runtime_backlog_tasks.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.7 (2026-03-07)
 
 ### Changes

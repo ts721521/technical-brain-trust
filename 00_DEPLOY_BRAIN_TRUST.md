@@ -233,6 +233,13 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
   --report-json /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/route_learning_report-$(date +%Y%m%d)-050000.json \
   --report-md /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/route_learning_report-$(date +%Y%m%d)-050000.md
 
+# 2.4) 将当日 P0/P1 待改进项同步到任务台账
+./scripts/sync_runtime_backlog_tasks.sh \
+  --runtime-report /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/runtime_health_report-$(date +%Y%m%d)-050000.json \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --yyyymm $(date +%Y%m)
+
 # 3) 查看定时任务
 crontab -l | rg BT_RUNTIME_AUDIT -n
 ```
@@ -242,6 +249,7 @@ crontab -l | rg BT_RUNTIME_AUDIT -n
 - `agent_model_inventory-YYYYMMDD-050000.md`
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
+- `backlog_sync_report-YYYYMMDD-050000.json`
 
 ## 阶段三MVP闭环（知识团队 + 研发团队 + Smart3D 团队）
 

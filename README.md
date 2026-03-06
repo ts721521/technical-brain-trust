@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.7
+./scripts/build_release_branch.sh --version v1.6.8
 ```
 
 Pre-publish safety gate:
@@ -100,6 +100,7 @@ Daily 05:00 runtime audit outputs:
 - `quality_evolution_report-YYYYMMDD-050000.md`
 - `route_learning_report-YYYYMMDD-050000.json`
 - `route_learning_report-YYYYMMDD-050000.md`
+- `backlog_sync_report-YYYYMMDD-050000.json`
 
 MVP closure smoke (knowledge + rd + smart3d teams):
 

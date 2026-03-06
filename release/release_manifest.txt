@@ -59,6 +59,7 @@ scripts/register_artifact_index.sh
 scripts/task_ledger.sh
 scripts/check_interface_bindings.sh
 scripts/runtime_health_audit.sh
+scripts/sync_runtime_backlog_tasks.sh
 scripts/bootstrap_agent_sessions.sh
 scripts/quality_evolution_compact.sh
 scripts/install_runtime_audit_cron.sh
@@ -67,6 +68,7 @@ scripts/run_mvp_team_closure.sh
 scripts/tests/test_task_ledger.sh
 scripts/tests/test_acceptance_gate.sh
 scripts/tests/test_runtime_health_audit.sh
+scripts/tests/test_sync_runtime_backlog_tasks.sh
 scripts/tests/test_bootstrap_agent_sessions.sh
 scripts/tests/test_quality_evolution_compact.sh
 scripts/tests/test_route_learning_compact.sh

@@ -803,3 +803,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 日报接入路由学习报告 | `scripts/runtime_health_audit.sh` | 让 05:00 日报同时覆盖执行健康、质量演进、路由演进。 | 已完成（新增 `route_learning_report-*.json/.md` 与 `runtime_health_report.route_learning` 字段） | 2026-03-07 |
 | 新增路由学习回归测试 | `scripts/tests/test_route_learning_compact.sh` | 防止后续修改导致路由趋势报告失效。 | 已完成（测试通过） | 2026-03-07 |
 | CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`docs/*.md` | 保证“新增能力=新增验收”，防止发布链路遗漏。 | 已完成（版本推进 `v1.6.7`） | 2026-03-07 |
+
+## 43. 下一阶段继续：运行态 backlog 自动回写任务台账留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增运行态 backlog 同步脚本 | `scripts/sync_runtime_backlog_tasks.sh` | 每日审计已产出 P0/P1 待改进项，但未自动进入任务生命周期，导致整改追踪断层。 | 已完成（支持读取 `runtime_health_report` 并去重写入 `task_ledger.jsonl`） | 2026-03-07 |
+| 日报接入 backlog 自动回写 | `scripts/runtime_health_audit.sh` | 将“发现问题”与“任务化整改”打通，避免仅停留在报告层。 | 已完成（新增 `backlog_sync_report-*.json` 与 `runtime_health_report.backlog_sync`） | 2026-03-07 |
+| 新增 backlog 同步单测 | `scripts/tests/test_sync_runtime_backlog_tasks.sh` | 防止去重/写入逻辑回归，保障重复运行幂等。 | 已完成（首轮创建2条、二次运行全跳过） | 2026-03-07 |
+| 运行态审计测试补齐新契约 | `scripts/tests/test_runtime_health_audit.sh` | 确保日报生成时 backlog 同步状态和产物都可验证。 | 已完成（断言 `backlog_sync.status=generated`） | 2026-03-07 |
+| CI/发布契约与文档同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_CHANGELOG.md` | 保证“新增能力=新增验收=新增发布说明”，避免脚本能力漂移。 | 已完成（版本推进 `v1.6.8`） | 2026-03-07 |
