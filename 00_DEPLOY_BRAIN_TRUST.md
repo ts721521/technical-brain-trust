@@ -240,6 +240,13 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
   --team team-brain-trust \
   --yyyymm $(date +%Y%m)
 
+# 2.5) 审计跨团队台账SLA（识别长时间卡住任务）
+./scripts/audit_task_ledger_sla.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --teams team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal \
+  --yyyymm $(date +%Y%m) \
+  --stale-hours 24
+
 # 3) 查看定时任务
 crontab -l | rg BT_RUNTIME_AUDIT -n
 ```
@@ -250,6 +257,7 @@ crontab -l | rg BT_RUNTIME_AUDIT -n
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
 - `backlog_sync_report-YYYYMMDD-050000.json`
+- `task_ledger_audit_report-YYYYMMDD-050000.json`
 
 ## 阶段三MVP闭环（知识团队 + 研发团队 + Smart3D 团队）
 

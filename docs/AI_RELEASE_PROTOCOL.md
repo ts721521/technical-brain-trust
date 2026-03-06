@@ -1,4 +1,4 @@
-# AI Release Protocol (v1.6.8)
+# AI Release Protocol (v1.6.9)
 
 本文件定义“后续由 AI 提交”时的标准发布协议。
 
@@ -45,7 +45,7 @@ git push origin release --tags
 
 - 必须产出 `release_publish_report.json`。
 - 提交说明必须引用：
-  - 发布版本（例如 `v1.6.8`）
+  - 发布版本（例如 `v1.6.9`）
   - 报告路径：`release_publish_report.json`
   - 校验结果：`verify_public_release` 与 `check_release_docs_consistency`。
 

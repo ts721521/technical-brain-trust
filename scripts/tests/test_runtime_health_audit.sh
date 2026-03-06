@@ -129,7 +129,8 @@ for f in \
   "improvement_backlog-${run_date}-050000.md" \
   "quality_evolution_report-${run_date}-050000.json" \
   "quality_evolution_report-${run_date}-050000.md" \
-  "backlog_sync_report-${run_date}-050000.json"; do
+  "backlog_sync_report-${run_date}-050000.json" \
+  "task_ledger_audit_report-${run_date}-050000.json"; do
   test -f "${base}/${f}"
 done
 
@@ -150,6 +151,7 @@ assert obj['quality_evolution']['status'] in ('generated', 'parse_failed')
 assert obj['route_learning']['status'] == 'skipped'
 assert obj['backlog_sync']['status'] == 'generated'
 assert obj['backlog_sync']['summary']['created_count'] >= 1
+assert obj['task_ledger_audit']['status'] == 'generated'
 assert 'improvement_backlog' in obj
 PY
 

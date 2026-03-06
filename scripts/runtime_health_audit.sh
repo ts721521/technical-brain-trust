@@ -6,6 +6,7 @@ REGISTER_SCRIPT="${ROOT_DIR}/scripts/register_artifact_index.sh"
 QUALITY_COMPACT_SCRIPT="${ROOT_DIR}/scripts/quality_evolution_compact.sh"
 ROUTE_COMPACT_SCRIPT="${ROOT_DIR}/scripts/route_learning_compact.sh"
 BACKLOG_SYNC_SCRIPT="${ROOT_DIR}/scripts/sync_runtime_backlog_tasks.sh"
+LEDGER_AUDIT_SCRIPT="${ROOT_DIR}/scripts/audit_task_ledger_sla.sh"
 
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
@@ -20,6 +21,8 @@ RUN_ROUTE_COMPACT="${BT_RUN_ROUTE_COMPACT:-true}"
 ROUTING_MEMORY_DIR="${BT_ROUTING_MEMORY_DIR:-$HOME/.openclaw/workspace/memory}"
 ROUTE_WINDOW="${BT_ROUTE_WINDOW:-200}"
 RUN_BACKLOG_SYNC="${BT_RUN_BACKLOG_SYNC:-true}"
+RUN_LEDGER_AUDIT="${BT_RUN_LEDGER_AUDIT:-true}"
+LEDGER_STALE_HOURS="${BT_LEDGER_STALE_HOURS:-24}"
 
 usage() {
   cat <<USAGE
@@ -35,6 +38,7 @@ Outputs (daily):
   route_learning_report-YYYYMMDD-HHMMSS.json
   route_learning_report-YYYYMMDD-HHMMSS.md
   backlog_sync_report-YYYYMMDD-HHMMSS.json
+  task_ledger_audit_report-YYYYMMDD-HHMMSS.json
 USAGE
 }
 
@@ -96,6 +100,7 @@ quality_md="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.md"
 route_json="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.json"
 route_md="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.md"
 backlog_sync_json="${out_dir}/backlog_sync_report-${run_date}-${SLOT_TIME}.json"
+ledger_audit_json="${out_dir}/task_ledger_audit_report-${run_date}-${SLOT_TIME}.json"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
@@ -830,8 +835,94 @@ else:
 backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
+ledger_audit_status="skipped"
+if [[ "${RUN_LEDGER_AUDIT}" == "true" && -x "${LEDGER_AUDIT_SCRIPT}" ]]; then
+  if "${LEDGER_AUDIT_SCRIPT}" \
+      --docs-root "${DOCS_ROOT}" \
+      --teams "${TEAMS_CSV}" \
+      --yyyymm "${yyyymm}" \
+      --stale-hours "${LEDGER_STALE_HOURS}" \
+      --out-report "${ledger_audit_json}" >/dev/null; then
+    ledger_audit_status="generated"
+  else
+    ledger_audit_status="failed"
+  fi
+fi
+
+python3 - "${runtime_json}" "${backlog_md}" "${ledger_audit_json}" "${ledger_audit_status}" "${LEDGER_STALE_HOURS}" <<'PY'
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+runtime_path = Path(sys.argv[1])
+backlog_path = Path(sys.argv[2])
+audit_report_path = Path(sys.argv[3])
+audit_status = sys.argv[4]
+stale_hours = int(sys.argv[5])
+
+if not runtime_path.exists():
+    raise SystemExit(0)
+
+runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+p0_items = list(runtime.get("improvement_backlog", {}).get("p0", []))
+p1_items = list(runtime.get("improvement_backlog", {}).get("p1", []))
+
+summary = {
+    "status": audit_status,
+    "report_json": str(audit_report_path),
+}
+if audit_status == "generated" and audit_report_path.exists():
+    try:
+        adata = json.loads(audit_report_path.read_text(encoding="utf-8"))
+        s = adata.get("summary", {})
+        stale_total = int(s.get("stale_total", 0) or 0)
+        open_total = int(s.get("open_total", 0) or 0)
+        missing = list(s.get("missing_ledgers", []) or [])
+        summary["summary"] = s
+        if stale_total > 0:
+            p1_items.append(f"任务台账存在 {stale_total} 条超过 {stale_hours} 小时未推进任务，需清理阻塞。")
+        elif open_total > 0:
+            p1_items.append(f"当前有 {open_total} 条进行中任务，建议按优先级复核推进节奏。")
+        if missing:
+            p1_items.append(f"台账审计发现缺失团队台账：{', '.join(missing)}")
+    except Exception as exc:
+        summary["status"] = "parse_failed"
+        summary["error"] = str(exc)
+        p1_items.append("任务台账审计报告解析失败，需检查 task_ledger_audit_report 产物。")
+elif audit_status == "failed":
+    p1_items.append("任务台账审计失败，需检查 audit_task_ledger_sla.sh。")
+
+runtime["task_ledger_audit"] = summary
+runtime.setdefault("improvement_backlog", {})["p0"] = p0_items
+runtime.setdefault("improvement_backlog", {})["p1"] = p1_items
+runtime_path.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+lines = [
+    "# Improvement Backlog",
+    "",
+    f"- Generated at: `{datetime.now().isoformat(timespec='seconds')}`",
+    "",
+    "## P0",
+]
+if p0_items:
+    for i, item in enumerate(p0_items, 1):
+        lines.append(f"{i}. {item}")
+else:
+    lines.append("1. 无")
+
+lines.append("\n## P1")
+if p1_items:
+    for i, item in enumerate(p1_items, 1):
+        lines.append(f"{i}. {item}")
+else:
+    lines.append("1. 无")
+
+backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+
 if [[ -x "${REGISTER_SCRIPT}" ]]; then
-  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${backlog_sync_json}"; do
+  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${backlog_sync_json}" "${ledger_audit_json}"; do
     [[ -f "${f}" ]] || continue
     "${REGISTER_SCRIPT}" \
       --docs-root "${DOCS_ROOT}" \
@@ -854,3 +945,4 @@ echo "- ${quality_md}"
 echo "- ${route_json}"
 echo "- ${route_md}"
 echo "- ${backlog_sync_json}"
+echo "- ${ledger_audit_json}"

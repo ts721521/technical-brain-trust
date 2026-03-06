@@ -813,3 +813,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 新增 backlog 同步单测 | `scripts/tests/test_sync_runtime_backlog_tasks.sh` | 防止去重/写入逻辑回归，保障重复运行幂等。 | 已完成（首轮创建2条、二次运行全跳过） | 2026-03-07 |
 | 运行态审计测试补齐新契约 | `scripts/tests/test_runtime_health_audit.sh` | 确保日报生成时 backlog 同步状态和产物都可验证。 | 已完成（断言 `backlog_sync.status=generated`） | 2026-03-07 |
 | CI/发布契约与文档同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_CHANGELOG.md` | 保证“新增能力=新增验收=新增发布说明”，避免脚本能力漂移。 | 已完成（版本推进 `v1.6.8`） | 2026-03-07 |
+
+## 44. 下一阶段继续：任务台账SLA审计闭环留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增任务台账SLA审计脚本 | `scripts/audit_task_ledger_sla.sh` | 现有日报仅看台账存在性，无法识别“任务长期卡住”风险。 | 已完成（支持跨团队台账审计、超时阈值识别、缺台账识别） | 2026-03-07 |
+| 日报接入台账SLA审计结果 | `scripts/runtime_health_audit.sh` | 将“监督任务是否真正推进”纳入每日固定输出与改进清单。 | 已完成（新增 `task_ledger_audit_report-*.json` 与 `runtime_health_report.task_ledger_audit`） | 2026-03-07 |
+| 新增台账审计回归测试 | `scripts/tests/test_audit_task_ledger_sla.sh` | 防止阈值逻辑/缺台账识别/字段结构回归。 | 已完成（测试通过） | 2026-03-07 |
+| 审计主流程测试补齐新契约 | `scripts/tests/test_runtime_health_audit.sh` | 确保每日审计产物和结构字段完整。 | 已完成（断言 `task_ledger_audit.status=generated`） | 2026-03-07 |
+| CI/发布契约与文档同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md` | 保证新增能力可发布、可验收、可复现。 | 已完成（版本推进 `v1.6.9`） | 2026-03-07 |

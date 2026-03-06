@@ -1,5 +1,36 @@
 # Deployment Changelog
 
+## v1.6.9 (2026-03-07)
+
+### Changes
+- Added task ledger SLA audit script:
+  - `scripts/audit_task_ledger_sla.sh`
+  - audits cross-team ledgers and identifies stale/open tasks by threshold hours.
+- Integrated task ledger audit into daily runtime audit:
+  - `scripts/runtime_health_audit.sh` now emits:
+    - `task_ledger_audit_report-YYYYMMDD-050000.json`
+  - runtime report now includes `task_ledger_audit` summary.
+- Added regression coverage:
+  - `scripts/tests/test_audit_task_ledger_sla.sh`
+  - updated `scripts/tests/test_runtime_health_audit.sh` assertions.
+- Updated CI/release manifest/release metadata/docs for SLA audit contract.
+
+### Compatibility Impact
+- Backward compatible.
+- Daily runtime audit adds one extra ops artifact for stale task visibility.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+  - `scripts/audit_task_ledger_sla.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal --yyyymm $(date +%Y%m) --stale-hours 24`
+- Verify outputs under:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/task_ledger_audit_report-*.json`
+
+### Verification Evidence
+- `scripts/tests/test_audit_task_ledger_sla.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.8 (2026-03-07)
 
 ### Changes
