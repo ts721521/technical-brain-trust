@@ -1,5 +1,34 @@
 # Deployment Changelog
 
+## v1.6.0 (2026-03-07)
+
+### Changes
+- Added Phase2 runtime convergence script: `scripts/phase2_runtime_convergence.sh`.
+- Added daily runtime audit script: `scripts/runtime_health_audit.sh`.
+- Added cron installer script for 05:00 daily audit: `scripts/install_runtime_audit_cron.sh`.
+- Added runtime audit regression test: `scripts/tests/test_runtime_health_audit.sh`.
+- Extended release metadata/manifest/CI checks with Phase2 scripts and audit checks.
+- Added runtime audit outputs contract:
+  - `runtime_health_report-YYYYMMDD-050000.json`
+  - `agent_model_inventory-YYYYMMDD-050000.md`
+  - `team_topology-YYYYMMDD-050000.md`
+  - `improvement_backlog-YYYYMMDD-050000.md`
+
+### Compatibility Impact
+- Adds new runtime auditing workflow and expected ops artifacts under docs root.
+- Introduces daily cron management requirement for runtime audit in production-like environments.
+
+### Migration Actions
+- Run `scripts/phase2_runtime_convergence.sh` once per environment.
+- Ensure daily audit cron entry exists (`crontab -l | rg BT_RUNTIME_AUDIT`).
+- Verify runtime audit outputs are generated under `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/`.
+
+### Verification Evidence
+- `bash -n scripts/runtime_health_audit.sh`
+- `bash -n scripts/install_runtime_audit_cron.sh`
+- `bash -n scripts/phase2_runtime_convergence.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+
 ## v1.5.0 (2026-03-06)
 
 ### Changes

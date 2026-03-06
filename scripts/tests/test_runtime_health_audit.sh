@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT="${ROOT_DIR}/scripts/runtime_health_audit.sh"
+
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "${tmp_dir}"' EXIT
+
+mkdir -p "${tmp_dir}/bin"
+export PATH="${tmp_dir}/bin:${PATH}"
+
+cat >"${tmp_dir}/bin/openclaw" <<'FAKE'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "agents" && "${2:-}" == "list" && "${3:-}" == "--json" ]]; then
+  cat <<'JSON'
+[
+  {"id":"main","model":"google-gemini-cli/gemini-3.1-pro-preview"},
+  {"id":"architect","model":"google-gemini-cli/gemini-3.1-pro-preview"},
+  {"id":"critic","model":"google-gemini-cli/gemini-3.1-pro-preview"},
+  {"id":"innovator","model":"google-gemini-cli/gemini-3.1-pro-preview"},
+  {"id":"pangu","model":"bailian/qwen3-coder-plus"},
+  {"id":"scholar","model":"zai/glm-5"},
+  {"id":"feige_notifier","model":"google-gemini-cli/gemini-2.0-flash"}
+]
+JSON
+  exit 0
+fi
+
+if [[ "${1:-}" == "status" && "${2:-}" == "--json" ]]; then
+  cat <<'JSON'
+{"ok":true}
+JSON
+  exit 0
+fi
+
+if [[ "${1:-}" == "security" && "${2:-}" == "audit" && "${3:-}" == "--json" ]]; then
+  cat <<'JSON'
+{"summary":{"critical":1,"warn":1,"info":0},"findings":[]}
+JSON
+  exit 0
+fi
+
+if [[ "${1:-}" == "cron" && "${2:-}" == "list" && "${3:-}" == "--json" ]]; then
+  cat <<'JSON'
+{"jobs":[{"id":"j1","name":"job1","enabled":true,"state":{"lastDeliveryStatus":"not-delivered"}}]}
+JSON
+  exit 0
+fi
+
+if [[ "${1:-}" == "models" && "${2:-}" == "status" ]]; then
+  echo "openai-codex/gpt-5.3-codex"
+  exit 0
+fi
+
+if [[ "${1:-}" == "models" && "${2:-}" == "fallbacks" && "${3:-}" == "list" ]]; then
+  cat <<'TXT'
+Fallbacks (3):
+- zai/glm-5
+- google-gemini-cli/gemini-3.1-pro-preview
+- bailian/qwen3.5-plus
+TXT
+  exit 0
+fi
+
+if [[ "${1:-}" == "models" && "${2:-}" == "list" ]]; then
+  cat <<'TXT'
+openai-codex/gpt-5.3-codex
+zai/glm-5
+google-gemini-cli/gemini-3.1-pro-preview
+bailian/qwen3.5-plus
+google-gemini-cli/gemini-3-pro-preview
+bailian/qwen3-max-2026-01-23
+zai/glm-4.7
+bailian/kimi-k2.5
+bailian/qwen3-coder-plus
+google-gemini-cli/gemini-2.0-flash
+TXT
+  exit 0
+fi
+
+if [[ "${1:-}" == "config" && "${2:-}" == "get" && "${3:-}" == "channels.telegram.allowFrom" ]]; then
+  echo '["6405799758"]'
+  exit 0
+fi
+
+if [[ "${1:-}" == "message" && "${2:-}" == "send" ]]; then
+  echo '{"ok":true}'
+  exit 0
+fi
+
+echo "unsupported: $*" >&2
+exit 1
+FAKE
+chmod +x "${tmp_dir}/bin/openclaw"
+
+export BT_DOCS_ROOT="${tmp_dir}/docs"
+mkdir -p "${BT_DOCS_ROOT}"
+export BT_TEAM_ID="team-brain-trust"
+export BT_QUEUE_STATE_FILE="${tmp_dir}/queue_state.json"
+
+cat >"${BT_QUEUE_STATE_FILE}" <<'JSON'
+{"items":[{"status":"failed"},{"status":"queued"}]}
+JSON
+
+"${SCRIPT}" --slot-time 050000 --notify true >/dev/null
+
+yyyymm="$(date +%Y%m)"
+run_date="$(date +%Y%m%d)"
+base="${BT_DOCS_ROOT}/${BT_TEAM_ID}/ops/${yyyymm}"
+
+for f in \
+  "runtime_health_report-${run_date}-050000.json" \
+  "agent_model_inventory-${run_date}-050000.md" \
+  "team_topology-${run_date}-050000.md" \
+  "improvement_backlog-${run_date}-050000.md"; do
+  test -f "${base}/${f}"
+done
+
+python3 - "${base}/runtime_health_report-${run_date}-050000.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+obj = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+assert obj['security_summary']['critical'] == 1
+assert obj['queue_summary']['failed'] == 1
+assert obj['queue_summary']['pending'] == 1
+assert 'improvement_backlog' in obj
+PY
+
+echo "runtime_health_audit tests passed"

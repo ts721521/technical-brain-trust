@@ -57,6 +57,11 @@ required_yaml_keys=(
   "queue_max:"
   "backlog_scale_threshold:"
   "dispatch_timeout_seconds:"
+  "audit:"
+  "daily_time:"
+  "timezone:"
+  "teams:"
+  "outputs:"
   "output:"
   "docs_root:"
   "team_id:"
@@ -163,6 +168,16 @@ for key, fn in checks.items():
 scope = get("runtime.scheduler.scope")
 if scope != "execution_heavy_only":
     print(f"Invalid runtime.scheduler.scope: {scope}", file=sys.stderr)
+    raise SystemExit(1)
+
+audit_time = get("runtime.audit.daily_time")
+if not isinstance(audit_time, str) or not re.fullmatch(r"[0-2][0-9]:[0-5][0-9]", audit_time):
+    print(f"Invalid runtime.audit.daily_time: {audit_time}", file=sys.stderr)
+    raise SystemExit(1)
+
+audit_tz = get("runtime.audit.timezone")
+if not isinstance(audit_tz, str) or not audit_tz.strip():
+    print(f"Invalid runtime.audit.timezone: {audit_tz}", file=sys.stderr)
     raise SystemExit(1)
 
 docs_root = get("output.docs_root")

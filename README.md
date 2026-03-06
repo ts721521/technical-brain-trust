@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.5.0
+./scripts/build_release_branch.sh --version v1.6.0
 ```
 
 Pre-publish safety gate:
@@ -75,6 +75,21 @@ git switch release
 - `scripts/`: validation, orchestration, sync, regression, bootstrap
 - `review_records/`: immutable review trace
 - `.agents/workflows/`: workflow entry definitions
+
+## Phase2 Runtime Convergence
+
+```bash
+./scripts/phase2_runtime_convergence.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --install-cron true
+```
+
+Daily 05:00 runtime audit outputs:
+- `runtime_health_report-YYYYMMDD-050000.json`
+- `agent_model_inventory-YYYYMMDD-050000.md`
+- `team_topology-YYYYMMDD-050000.md`
+- `improvement_backlog-YYYYMMDD-050000.md`
 
 ## Governance Rule
 

@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.5.0
+# Brain Trust Deployment Release v1.6.0
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.5.0`
+- Release version: `v1.6.0`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.5.0
+./scripts/build_release_branch.sh --version v1.6.0
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -208,6 +208,10 @@ git push origin release --tags
 - `bash -n scripts/task_ledger.sh`
 - `bash -n scripts/tests/test_task_ledger.sh`
 - `bash -n scripts/tests/test_acceptance_gate.sh`
+- `bash -n scripts/runtime_health_audit.sh`
+- `bash -n scripts/install_runtime_audit_cron.sh`
+- `bash -n scripts/phase2_runtime_convergence.sh`
+- `bash -n scripts/tests/test_runtime_health_audit.sh`
 
 2. Policy and env validation
 - `source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh`
@@ -221,6 +225,8 @@ git push origin release --tags
 - `scripts/test_run_brain_trust_review_regression.sh`
 - `scripts/tests/test_task_ledger.sh`
 - `scripts/tests/test_acceptance_gate.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
 
 4. E2E smoke
 - `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m) --local`
@@ -233,6 +239,12 @@ git push origin release --tags
   - `published -> assigned -> in_progress -> review -> acceptance`
   - pass path reaches `done`
   - blocked path reopens to `in_progress` with `reopen_actions`
+- Daily runtime audit artifacts exist under `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/`:
+  - `runtime_health_report-YYYYMMDD-050000.json`
+  - `agent_model_inventory-YYYYMMDD-050000.md`
+  - `team_topology-YYYYMMDD-050000.md`
+  - `improvement_backlog-YYYYMMDD-050000.md`
+- Model drift report includes primary/fallback diff for: `architect/critic/innovator/pangu/scholar/feige_notifier`.
 - Routing/output must not contain `spark` or unsupported OpenAI variants.
 - Stage4 artifacts exist: `pangu_execution_plan.md`, `pangu_execution_report.md`, `pangu_execution_raw.json`.
 - Stage4 completion proof gate is enforced:
@@ -246,6 +258,8 @@ git push origin release --tags
 - When using `--announce` delivery, `sessionTarget` must be `isolated` (OpenClaw CLI constraint).
 - If `sessionTarget=main` is required, use `system-event` instead of `--message`.
 - Idle decision must use union check (`openclaw sessions --all-agents --active 30 --json` + queue state + active sub-sessions), not `sessions_list` alone.
+- Daily 05:00 runtime audit cron is installed:
+  - `scripts/install_runtime_audit_cron.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust`
 
 7. Scholar strict test phases (design acceptance)
 - K1 role/config consistency:

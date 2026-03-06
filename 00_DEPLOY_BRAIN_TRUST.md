@@ -195,6 +195,32 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
 台账路径（默认）：
 `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/task_ledger.jsonl`
 
+## 阶段二运行态收敛（P0+MVP）
+
+```bash
+# 1) 一次性收敛：模型链校准 + 安全基线 + 网关重启 + 首次日报 + 安装05:00定时任务
+./scripts/phase2_runtime_convergence.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --install-cron true
+
+# 2) 手工触发日报（可随时重跑）
+./scripts/runtime_health_audit.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --slot-time 050000 \
+  --notify true
+
+# 3) 查看定时任务
+crontab -l | rg BT_RUNTIME_AUDIT -n
+```
+
+阶段二每日固定产物（便于人类不登录系统查看）：
+- `runtime_health_report-YYYYMMDD-050000.json`
+- `agent_model_inventory-YYYYMMDD-050000.md`
+- `team_topology-YYYYMMDD-050000.md`
+- `improvement_backlog-YYYYMMDD-050000.md`
+
 ## 第零步：加载环境变量并校验
 
 ```bash

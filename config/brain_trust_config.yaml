@@ -78,6 +78,19 @@ runtime:
     retry:
       max_attempts: 2
       backoff_seconds: 5
+  audit:
+    enabled: true
+    daily_time: "05:00"
+    timezone: "Asia/Shanghai"
+    teams:
+      - "team-brain-trust"
+      - "team-knowledge"
+      - "team-rd"
+    outputs:
+      - "runtime_health_report-YYYYMMDD-050000.json"
+      - "agent_model_inventory-YYYYMMDD-050000.md"
+      - "team_topology-YYYYMMDD-050000.md"
+      - "improvement_backlog-YYYYMMDD-050000.md"
 
 # 输出存储
 output:

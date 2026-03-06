@@ -28,8 +28,12 @@ jobs:
           bash -n scripts/register_artifact_index.sh
           bash -n scripts/task_ledger.sh
           bash -n scripts/check_interface_bindings.sh
+          bash -n scripts/runtime_health_audit.sh
+          bash -n scripts/install_runtime_audit_cron.sh
+          bash -n scripts/phase2_runtime_convergence.sh
           bash -n scripts/tests/test_task_ledger.sh
           bash -n scripts/tests/test_acceptance_gate.sh
+          bash -n scripts/tests/test_runtime_health_audit.sh
 
       - name: Regression suite
         run: |
@@ -37,3 +41,4 @@ jobs:
           ./scripts/test_run_brain_trust_review_regression.sh
           ./scripts/tests/test_task_ledger.sh
           ./scripts/tests/test_acceptance_gate.sh
+          ./scripts/tests/test_runtime_health_audit.sh

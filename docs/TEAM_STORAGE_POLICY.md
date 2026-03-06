@@ -1,4 +1,4 @@
-# Team Storage Policy (v1.5.0)
+# Team Storage Policy (v1.6.0)
 
 ## 目的
 

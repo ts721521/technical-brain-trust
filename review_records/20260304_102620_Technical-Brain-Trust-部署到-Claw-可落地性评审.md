@@ -700,3 +700,16 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 新增渠道绑定可见性校验脚本 | scripts/check_interface_bindings.sh | 明确 `openclaw agents bindings` 为渠道绑定视图，补齐默认告警与严格阻断（`--strict`）两种验收模式。 | 已完成（默认告警不阻断，严格模式可强制失败） | 2026-03-06 |
 | 部署与发布契约同步 | 01_Review_Workflow.md;00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;release/release_manifest.txt | 将台账脚本与验收测试纳入标准发布与验收链，避免文档-实现脱节。 | 已完成（新增命令与契约检查项） | 2026-03-06 |
 | 全量回归复验 | scripts/test_run_brain_trust_review_regression.sh | 确认新增台账回写不破坏既有 Stage1-5 与评分/路由逻辑。 | 已完成（输出 `All regression checks passed.`） | 2026-03-06 |
+
+## 33. 阶段二运行态收敛与安全基线落地留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增运行态日报脚本（05:00） | `scripts/runtime_health_audit.sh` | 需要“人不登录系统也能监督”的固定监督产物，覆盖模型漂移、安全状态、队列失败、团队台账缺口。 | 已完成（每日4类文件落盘到 `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/202603/`） | 2026-03-07 |
+| 新增05:00定时安装器 | `scripts/install_runtime_audit_cron.sh` | 将日报从手工触发改为稳定自动执行。 | 已完成（`crontab -l` 已出现 `BT_RUNTIME_AUDIT` 条目） | 2026-03-07 |
+| 新增阶段二收敛脚本 | `scripts/phase2_runtime_convergence.sh` | 一次性执行模型基线校准 + 安全基线收敛 + 网关重启 + 首次审计。 | 已完成（生成 `runtime_convergence_record-20260307-004051.json`） | 2026-03-07 |
+| 修复模型收敛语义误差（关键） | `scripts/phase2_runtime_convergence.sh`;`scripts/runtime_health_audit.sh` | OpenClaw 默认模型作用域为全局；早期按角色持久写入会被后写覆盖并造成漂移误报。 | 已完成（改为“全局基线=architect链路 + 角色链路仅记录用于运行时切换”，`model_drift.count=0`） | 2026-03-07 |
+| 新增阶段二回归测试 | `scripts/tests/test_runtime_health_audit.sh`;`.github/workflows/brain_trust_verify.yml` | 防止审计脚本结构漂移导致无效日报。 | 已完成（测试通过，CI 已纳入语法+执行检查） | 2026-03-07 |
+| 环境与部署契约同步 | `config/brain_trust_config.yaml`;`scripts/validate_brain_trust_env.sh`;`config/deployment_release.yaml`;`release/release_manifest.txt`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md` | 保证“脚本、文档、发布元数据、CI”同一口径，避免后续 AI 发布偏差。 | 已完成（版本升级 `v1.6.0`，文档一致性检查通过） | 2026-03-07 |
+| 安全基线收敛结果留痕 | `openclaw security audit --json`（运行态） | 验证 P0 安全目标是否达标。 | 已完成（critical=0，high=0；剩余 warn=1 为 `gateway.trusted_proxies_missing`） | 2026-03-07 |
+| 运行态剩余问题留痕 | `runtime_health_report-20260307-050000.json` | 保持“异常可见+可整改”。 | 已记录（队列失败任务=2，cron投递异常=2，团队台账缺口存在） | 2026-03-07 |
