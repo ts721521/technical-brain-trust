@@ -257,6 +257,8 @@ crontab -l | rg BT_RUNTIME_AUDIT -n
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
 - `runtime_executive_summary-YYYYMMDD-050000.md`
+- `runtime_trend_report-YYYYMMDD-050000.json`
+- `runtime_trend_report-YYYYMMDD-050000.md`
 - `backlog_sync_report-YYYYMMDD-050000.json`
 - `task_ledger_audit_report-YYYYMMDD-050000.json`
 

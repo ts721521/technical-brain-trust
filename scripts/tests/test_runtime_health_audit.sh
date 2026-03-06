@@ -130,6 +130,8 @@ for f in \
   "runtime_executive_summary-${run_date}-050000.md" \
   "quality_evolution_report-${run_date}-050000.json" \
   "quality_evolution_report-${run_date}-050000.md" \
+  "runtime_trend_report-${run_date}-050000.json" \
+  "runtime_trend_report-${run_date}-050000.md" \
   "backlog_sync_report-${run_date}-050000.json" \
   "task_ledger_audit_report-${run_date}-050000.json"; do
   test -f "${base}/${f}"
@@ -153,9 +155,11 @@ assert obj['route_learning']['status'] == 'skipped'
 assert obj['backlog_sync']['status'] == 'generated'
 assert obj['backlog_sync']['summary']['created_count'] >= 1
 assert obj['task_ledger_audit']['status'] == 'generated'
+assert obj['trend']['status'] in ('no_baseline','stable','improving','worsening','mixed')
 assert 'improvement_backlog' in obj
 PY
 
-rg -n "Overall health|Key Metrics|Lifecycle Audits|Action List" "${base}/runtime_executive_summary-${run_date}-050000.md" >/dev/null
+rg -n "Overall health|Key Metrics|Lifecycle Audits|Action List|Runtime trend" "${base}/runtime_executive_summary-${run_date}-050000.md" >/dev/null
+rg -n "Trend status|Metric|Notes" "${base}/runtime_trend_report-${run_date}-050000.md" >/dev/null
 
 echo "runtime_health_audit tests passed"

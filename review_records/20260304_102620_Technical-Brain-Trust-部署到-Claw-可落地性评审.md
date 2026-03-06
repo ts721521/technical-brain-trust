@@ -831,3 +831,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 日报新增管理层单页摘要 | `scripts/runtime_health_audit.sh` | 现有日报信息分散，人类不登录系统时难以一眼判断健康状态与行动项。 | 已完成（新增 `runtime_executive_summary-*.md`，包含健康级别、关键指标、行动清单） | 2026-03-07 |
 | 审计测试覆盖摘要产物 | `scripts/tests/test_runtime_health_audit.sh` | 防止摘要产物或结构化章节在后续迭代中丢失。 | 已完成（断言产物存在且含 `Overall health/Key Metrics/Lifecycle Audits/Action List`） | 2026-03-07 |
 | 发布契约与文档同步 | `README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md` | 保证新增产物对外可感知、可验收、可复现。 | 已完成（版本推进 `v1.6.10`） | 2026-03-07 |
+
+## 46. 下一阶段继续：运行态趋势对比日报落地留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 日报新增趋势对比产物 | `scripts/runtime_health_audit.sh` | 现有日报是静态快照，缺少“相比昨日变好/变坏”视角，难以做连续治理。 | 已完成（新增 `runtime_trend_report-*.json/.md`，自动对比上一份日报） | 2026-03-07 |
+| 运行态报告新增 trend 字段 | `scripts/runtime_health_audit.sh` | 让下游脚本和人类都能消费统一趋势状态。 | 已完成（新增 `runtime_health_report.trend.status` 与 delta 元信息） | 2026-03-07 |
+| 管理层摘要接入趋势结论 | `scripts/runtime_health_audit.sh` | 让“单页摘要”直接体现趋势，不用手工交叉比对多份报告。 | 已完成（新增 `Runtime trend` 行） | 2026-03-07 |
+| 回归测试补齐趋势产物与结构断言 | `scripts/tests/test_runtime_health_audit.sh` | 防止趋势功能回归丢失。 | 已完成（断言 trend 状态和趋势报告文件） | 2026-03-07 |
+| 文档/发布契约同步 | `README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md` | 保证新产物可见、可验收、可发布。 | 已完成（版本推进 `v1.6.11`） | 2026-03-07 |

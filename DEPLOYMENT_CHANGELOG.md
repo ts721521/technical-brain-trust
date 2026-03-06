@@ -1,5 +1,33 @@
 # Deployment Changelog
 
+## v1.6.11 (2026-03-07)
+
+### Changes
+- Added runtime trend comparison artifacts in daily audit:
+  - `runtime_trend_report-YYYYMMDD-050000.json`
+  - `runtime_trend_report-YYYYMMDD-050000.md`
+- `scripts/runtime_health_audit.sh` now compares current run with previous runtime report and writes:
+  - trend status (`no_baseline|stable|improving|worsening|mixed`)
+  - metric deltas (security, queue, model drift, backlog counts, stale tasks).
+- `runtime_executive_summary` now includes runtime trend status.
+- Updated regression/doc/release contracts for trend artifacts.
+
+### Compatibility Impact
+- Backward compatible.
+- Daily runtime audit adds two trend artifacts for change visibility.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+- Verify:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/runtime_trend_report-*.json`
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/runtime_trend_report-*.md`
+
+### Verification Evidence
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/test_run_brain_trust_review_regression.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.10 (2026-03-07)
 
 ### Changes

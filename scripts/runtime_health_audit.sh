@@ -38,6 +38,8 @@ Outputs (daily):
   quality_evolution_report-YYYYMMDD-HHMMSS.md
   route_learning_report-YYYYMMDD-HHMMSS.json
   route_learning_report-YYYYMMDD-HHMMSS.md
+  runtime_trend_report-YYYYMMDD-HHMMSS.json
+  runtime_trend_report-YYYYMMDD-HHMMSS.md
   backlog_sync_report-YYYYMMDD-HHMMSS.json
   task_ledger_audit_report-YYYYMMDD-HHMMSS.json
 USAGE
@@ -101,6 +103,8 @@ quality_json="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.json"
 quality_md="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.md"
 route_json="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.json"
 route_md="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.md"
+trend_json="${out_dir}/runtime_trend_report-${run_date}-${SLOT_TIME}.json"
+trend_md="${out_dir}/runtime_trend_report-${run_date}-${SLOT_TIME}.md"
 backlog_sync_json="${out_dir}/backlog_sync_report-${run_date}-${SLOT_TIME}.json"
 ledger_audit_json="${out_dir}/task_ledger_audit_report-${run_date}-${SLOT_TIME}.json"
 
@@ -923,7 +927,130 @@ else:
 backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
-python3 - "${runtime_json}" "${summary_md}" "${quality_json}" "${route_json}" "${backlog_sync_json}" "${ledger_audit_json}" <<'PY'
+python3 - "${runtime_json}" "${trend_json}" "${trend_md}" "${out_dir}" <<'PY'
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+runtime_path = Path(sys.argv[1])
+trend_json_path = Path(sys.argv[2])
+trend_md_path = Path(sys.argv[3])
+out_dir = Path(sys.argv[4])
+
+if not runtime_path.exists():
+    raise SystemExit(0)
+
+current = json.loads(runtime_path.read_text(encoding="utf-8"))
+current_name = runtime_path.name
+
+all_reports = sorted(out_dir.glob("runtime_health_report-*.json"))
+previous = None
+for p in all_reports:
+    if p.name == current_name:
+        continue
+    previous = p
+
+def get_metrics(obj):
+    return {
+        "security_critical": int((obj.get("security_summary", {}) or {}).get("critical", 0) or 0),
+        "security_warn": int((obj.get("security_summary", {}) or {}).get("warn", 0) or 0),
+        "queue_failed_recent": int((obj.get("queue_summary", {}) or {}).get("failed_recent", 0) or 0),
+        "model_drift_count": int((obj.get("model_drift", {}) or {}).get("count", 0) or 0),
+        "backlog_p0_count": len((obj.get("improvement_backlog", {}) or {}).get("p0", []) or []),
+        "backlog_p1_count": len((obj.get("improvement_backlog", {}) or {}).get("p1", []) or []),
+        "stale_task_count": int(((obj.get("task_ledger_audit", {}) or {}).get("summary", {}) or {}).get("stale_total", 0) or 0),
+    }
+
+cur_metrics = get_metrics(current)
+trend = {
+    "generated_at": datetime.now().isoformat(timespec="seconds"),
+    "current_report": str(runtime_path),
+    "previous_report": str(previous) if previous else "",
+    "status": "no_baseline",
+    "metrics": {"current": cur_metrics, "previous": {}, "delta": {}},
+    "worsened_metrics": [],
+    "improved_metrics": [],
+    "notes": [],
+}
+
+if previous and previous.exists():
+    prev_obj = json.loads(previous.read_text(encoding="utf-8"))
+    prev_metrics = get_metrics(prev_obj)
+    deltas = {k: cur_metrics[k] - prev_metrics.get(k, 0) for k in cur_metrics}
+    worsened = [k for k, v in deltas.items() if v > 0]
+    improved = [k for k, v in deltas.items() if v < 0]
+    if worsened and not improved:
+        status = "worsening"
+    elif improved and not worsened:
+        status = "improving"
+    elif not worsened and not improved:
+        status = "stable"
+    else:
+        status = "mixed"
+
+    trend["status"] = status
+    trend["metrics"]["previous"] = prev_metrics
+    trend["metrics"]["delta"] = deltas
+    trend["worsened_metrics"] = worsened
+    trend["improved_metrics"] = improved
+    if status == "worsening":
+        trend["notes"].append("运行态关键指标较上次恶化，建议优先处理 worsened_metrics。")
+    elif status == "improving":
+        trend["notes"].append("运行态关键指标较上次改善，可继续保持当前收敛策略。")
+    elif status == "mixed":
+        trend["notes"].append("运行态出现分化，建议按 worsened_metrics 定向修复。")
+    else:
+        trend["notes"].append("运行态与上次基本一致。")
+else:
+    trend["notes"].append("未找到上一份日报，当前为趋势基线。")
+
+trend_json_path.write_text(json.dumps(trend, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+lines = [
+    "# Runtime Trend Report",
+    "",
+    f"- Generated at: `{trend['generated_at']}`",
+    f"- Trend status: `{trend['status']}`",
+    f"- Current report: `{trend['current_report']}`",
+    f"- Previous report: `{trend['previous_report'] or '-'} `",
+    "",
+    "| Metric | Current | Previous | Delta |",
+    "|---|---:|---:|---:|",
+]
+prev = trend["metrics"]["previous"]
+dlt = trend["metrics"]["delta"]
+for key, cur in trend["metrics"]["current"].items():
+    lines.append(f"| {key} | {cur} | {prev.get(key, '-')} | {dlt.get(key, '-')} |")
+
+if trend["worsened_metrics"] or trend["improved_metrics"]:
+    lines.extend(
+        [
+            "",
+            f"- worsened: `{', '.join(trend['worsened_metrics']) if trend['worsened_metrics'] else '-'}`",
+            f"- improved: `{', '.join(trend['improved_metrics']) if trend['improved_metrics'] else '-'}`",
+        ]
+    )
+if trend["notes"]:
+    lines.append("")
+    lines.append("## Notes")
+    for i, note in enumerate(trend["notes"], 1):
+        lines.append(f"{i}. {note}")
+
+trend_md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+current["trend"] = {
+    "status": trend["status"],
+    "report_json": str(trend_json_path),
+    "report_md": str(trend_md_path),
+    "previous_report": trend["previous_report"],
+    "worsened_metrics": trend["worsened_metrics"],
+    "improved_metrics": trend["improved_metrics"],
+}
+runtime_path.write_text(json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
+python3 - "${runtime_json}" "${summary_md}" "${quality_json}" "${route_json}" "${backlog_sync_json}" "${ledger_audit_json}" "${trend_json}" <<'PY'
 import json
 import sys
 from datetime import datetime
@@ -935,6 +1062,7 @@ quality_path = Path(sys.argv[3])
 route_path = Path(sys.argv[4])
 backlog_sync_path = Path(sys.argv[5])
 ledger_audit_path = Path(sys.argv[6])
+trend_path = Path(sys.argv[7])
 
 if not runtime_path.exists():
     raise SystemExit(0)
@@ -951,6 +1079,7 @@ backlog_sync = runtime.get("backlog_sync", {}) or {}
 ledger_audit = runtime.get("task_ledger_audit", {}) or {}
 quality = runtime.get("quality_evolution", {}) or {}
 route = runtime.get("route_learning", {}) or {}
+trend = runtime.get("trend", {}) or {}
 
 health = "HEALTHY"
 if p0:
@@ -991,6 +1120,7 @@ lines.extend(
     [
         f"- Quality evolution: `{quality.get('status', 'unknown')}`",
         f"- Route learning: `{route.get('status', 'unknown')}`",
+        f"- Runtime trend: `{trend.get('status', 'unknown')}`",
         "",
         "## Action List",
     ]
@@ -1014,6 +1144,7 @@ lines.extend(
         f"- runtime: `{runtime_path}`",
         f"- quality report: `{quality_path}`",
         f"- route report: `{route_path}`",
+        f"- trend report: `{trend_path}`",
         f"- backlog sync: `{backlog_sync_path}`",
         f"- task ledger audit: `{ledger_audit_path}`",
     ]
@@ -1023,7 +1154,7 @@ summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
 if [[ -x "${REGISTER_SCRIPT}" ]]; then
-  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${summary_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${backlog_sync_json}" "${ledger_audit_json}"; do
+  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${summary_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${trend_json}" "${trend_md}" "${backlog_sync_json}" "${ledger_audit_json}"; do
     [[ -f "${f}" ]] || continue
     "${REGISTER_SCRIPT}" \
       --docs-root "${DOCS_ROOT}" \
@@ -1046,5 +1177,7 @@ echo "- ${quality_json}"
 echo "- ${quality_md}"
 echo "- ${route_json}"
 echo "- ${route_md}"
+echo "- ${trend_json}"
+echo "- ${trend_md}"
 echo "- ${backlog_sync_json}"
 echo "- ${ledger_audit_json}"

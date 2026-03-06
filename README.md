@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.10
+./scripts/build_release_branch.sh --version v1.6.11
 ```
 
 Pre-publish safety gate:
@@ -101,6 +101,8 @@ Daily 05:00 runtime audit outputs:
 - `quality_evolution_report-YYYYMMDD-050000.md`
 - `route_learning_report-YYYYMMDD-050000.json`
 - `route_learning_report-YYYYMMDD-050000.md`
+- `runtime_trend_report-YYYYMMDD-050000.json`
+- `runtime_trend_report-YYYYMMDD-050000.md`
 - `backlog_sync_report-YYYYMMDD-050000.json`
 - `task_ledger_audit_report-YYYYMMDD-050000.json`
 
