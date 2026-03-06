@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.0
+# Brain Trust Deployment Release v1.6.1
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.0`
+- Release version: `v1.6.1`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.0
+./scripts/build_release_branch.sh --version v1.6.1
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -211,7 +211,9 @@ git push origin release --tags
 - `bash -n scripts/runtime_health_audit.sh`
 - `bash -n scripts/install_runtime_audit_cron.sh`
 - `bash -n scripts/phase2_runtime_convergence.sh`
+- `bash -n scripts/run_mvp_team_closure.sh`
 - `bash -n scripts/tests/test_runtime_health_audit.sh`
+- `bash -n scripts/tests/test_mvp_team_closure.sh`
 
 2. Policy and env validation
 - `source config/brain_trust.env.example && scripts/validate_brain_trust_env.sh`
@@ -226,7 +228,9 @@ git push origin release --tags
 - `scripts/tests/test_task_ledger.sh`
 - `scripts/tests/test_acceptance_gate.sh`
 - `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/tests/test_mvp_team_closure.sh`
 - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+- `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-knowledge,team-rd --tasks-per-team 1 --yyyymm $(date +%Y%m)`
 
 4. E2E smoke
 - `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m) --local`
@@ -239,6 +243,9 @@ git push origin release --tags
   - `published -> assigned -> in_progress -> review -> acceptance`
   - pass path reaches `done`
   - blocked path reopens to `in_progress` with `reopen_actions`
+- MVP teams (`team-knowledge`, `team-rd`) each produce closure evidence:
+  - per-team ledger exists under `/Volumes/TB512/3_ClawDocs/<team>/ops/<yyyymm>/task_ledger.jsonl`
+  - acceptance evidence files exist under `/Volumes/TB512/3_ClawDocs/<team>/evidence/<yyyymm>/`
 - Daily runtime audit artifacts exist under `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/`:
   - `runtime_health_report-YYYYMMDD-050000.json`
   - `agent_model_inventory-YYYYMMDD-050000.md`

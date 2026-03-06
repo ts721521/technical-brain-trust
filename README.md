@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.0
+./scripts/build_release_branch.sh --version v1.6.1
 ```
 
 Pre-publish safety gate:
@@ -90,6 +90,15 @@ Daily 05:00 runtime audit outputs:
 - `agent_model_inventory-YYYYMMDD-050000.md`
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
+
+MVP closure smoke (knowledge + rd teams):
+
+```bash
+./scripts/run_mvp_team_closure.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --teams team-knowledge,team-rd \
+  --tasks-per-team 3
+```
 
 ## Governance Rule
 

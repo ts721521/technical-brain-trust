@@ -736,3 +736,14 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 审计 backlog 噪声清理 | `scripts/runtime_health_audit.sh` | 历史失败与无投递模式误判导致日报长期虚高。 | 已完成（`delivery_issues=[]`；`failed_recent=0`；`improvement_backlog.p0/p1` 均为空） | 2026-03-07 |
 | 阶段二回归复验 | `scripts/tests/test_runtime_health_audit.sh`;`scripts/test_run_brain_trust_review_regression.sh` | 确认收口修复未引入回归。 | 已完成（两项测试均通过） | 2026-03-07 |
 
+
+## 36. 下一阶段启动：知识团队+研发团队MVP闭环落地留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增MVP闭环执行脚本 | `scripts/run_mvp_team_closure.sh` | 需要把“知识团队+研发团队先跑通闭环”从口头计划变成一键执行。 | 已完成（支持两团队批量生成 lifecycle + acceptance 证据） | 2026-03-07 |
+| 新增MVP闭环测试脚本 | `scripts/tests/test_mvp_team_closure.sh` | 防止后续迭代把闭环脚本跑坏。 | 已完成（测试通过） | 2026-03-07 |
+| 发布契约纳入MVP闭环 | `config/deployment_release.yaml`;`release/release_manifest.txt`;`.github/workflows/brain_trust_verify.yml` | 保证发布链路与CI对齐，不出现“有脚本但没纳入验收”。 | 已完成（required_scripts/acceptance/CI 已纳入） | 2026-03-07 |
+| 部署文档同步下一阶段入口 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md`;`DEPLOYMENT_CHANGELOG.md` | 让人类与AI都能按统一入口执行下一阶段。 | 已完成（新增阶段三MVP闭环命令与验收点） | 2026-03-07 |
+| 版本推进 | `config/deployment_release.yaml` | 与本轮发布内容一致化。 | 已完成（`release_version` 更新为 `v1.6.1`） | 2026-03-07 |
+

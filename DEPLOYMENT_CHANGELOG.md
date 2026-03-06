@@ -1,5 +1,30 @@
 # Deployment Changelog
 
+## v1.6.1 (2026-03-07)
+
+### Changes
+- Added MVP team closure runner: `scripts/run_mvp_team_closure.sh`.
+- Added MVP closure regression test: `scripts/tests/test_mvp_team_closure.sh`.
+- Updated runtime audit to:
+  - separate `failed_total` and `failed_recent` queue metrics
+  - avoid cron false positives for `delivery=none`/`not-requested`
+- Updated phase2 convergence to pre-create cross-team ledgers before daily audit.
+- Added deployment/docs/CI/release-manifest coverage for MVP closure checks.
+
+### Compatibility Impact
+- No breaking changes to existing Stage1-Stage5 contracts.
+- Adds new optional MVP evidence artifact:
+  - `mvp_team_closure_report-YYYYMMDD-HHMMSS.json`
+
+### Migration Actions
+- Run `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-knowledge,team-rd --tasks-per-team 3`.
+- Verify acceptance evidence is generated under each team `evidence/<yyyymm>/`.
+
+### Verification Evidence
+- `bash -n scripts/run_mvp_team_closure.sh`
+- `bash -n scripts/tests/test_mvp_team_closure.sh`
+- `scripts/tests/test_mvp_team_closure.sh`
+
 ## v1.6.0 (2026-03-07)
 
 ### Changes
