@@ -1,5 +1,35 @@
 # Deployment Changelog
 
+## v1.6.3 (2026-03-07)
+
+### Changes
+- Expanded default runtime audit team coverage:
+  - `runtime_health_audit.sh` now audits `team-brain-trust, team-knowledge, team-rd, team-smart3d, team-proposal`.
+  - `phase2_runtime_convergence.sh` now pre-initializes ledgers for the same team set.
+- Expanded MVP closure defaults:
+  - `run_mvp_team_closure.sh` default teams now include `team-smart3d`.
+  - Added owner mapping support and test coverage for `team-proposal -> proposal_lead`.
+- Updated deployment/release docs to stage progression:
+  - Stage3: knowledge + rd + smart3d
+  - Stage4: proposal expansion
+- Bumped release metadata and docs consistency version to `v1.6.3`.
+
+### Compatibility Impact
+- Backward compatible with all existing commands.
+- Wider default team coverage may create additional empty ledgers for monitoring visibility.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+  - `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-proposal --tasks-per-team 3`
+
+### Verification Evidence
+- `bash -n scripts/runtime_health_audit.sh`
+- `bash -n scripts/phase2_runtime_convergence.sh`
+- `bash -n scripts/run_mvp_team_closure.sh`
+- `bash -n scripts/tests/test_mvp_team_closure.sh`
+- `scripts/tests/test_mvp_team_closure.sh`
+
 ## v1.6.2 (2026-03-07)
 
 ### Changes

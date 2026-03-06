@@ -6,7 +6,7 @@ TASK_LEDGER_SCRIPT="${ROOT_DIR}/scripts/task_ledger.sh"
 REGISTER_SCRIPT="${ROOT_DIR}/scripts/register_artifact_index.sh"
 
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
-TEAMS_CSV="${BT_MVP_TEAMS:-team-knowledge,team-rd}"
+TEAMS_CSV="${BT_MVP_TEAMS:-team-knowledge,team-rd,team-smart3d}"
 TASKS_PER_TEAM="${BT_MVP_TASKS_PER_TEAM:-3}"
 YYYYMM="$(date +%Y%m)"
 TS="$(date +%Y%m%d-%H%M%S)"

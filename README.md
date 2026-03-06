@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.2
+./scripts/build_release_branch.sh --version v1.6.3
 ```
 
 Pre-publish safety gate:
@@ -91,21 +91,21 @@ Daily 05:00 runtime audit outputs:
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
 
-MVP closure smoke (knowledge + rd teams):
+MVP closure smoke (knowledge + rd + smart3d teams):
 
 ```bash
 ./scripts/run_mvp_team_closure.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
-  --teams team-knowledge,team-rd \
+  --teams team-knowledge,team-rd,team-smart3d \
   --tasks-per-team 3
 ```
 
-下一阶段扩容（Smart3D 团队）：
+下一阶段扩容（Proposal 团队）：
 
 ```bash
 ./scripts/run_mvp_team_closure.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
-  --teams team-smart3d \
+  --teams team-proposal \
   --tasks-per-team 3
 ```
 

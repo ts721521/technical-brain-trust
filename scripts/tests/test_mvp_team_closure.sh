@@ -10,13 +10,13 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 export BT_DOCS_ROOT="${tmp_dir}/docs"
 mkdir -p "${BT_DOCS_ROOT}"
 
-"${SCRIPT}" --docs-root "${BT_DOCS_ROOT}" --teams "team-knowledge,team-rd,team-smart3d" --tasks-per-team 2 >/dev/null
+"${SCRIPT}" --docs-root "${BT_DOCS_ROOT}" --teams "team-knowledge,team-rd,team-smart3d,team-proposal" --tasks-per-team 2 >/dev/null
 
 yyyymm="$(date +%Y%m)"
 summary_file="$(ls -1 "${BT_DOCS_ROOT}/team-brain-trust/ops/${yyyymm}"/mvp_team_closure_report-*.json | tail -n 1)"
 test -f "${summary_file}"
 
-for t in team-knowledge team-rd team-smart3d; do
+for t in team-knowledge team-rd team-smart3d team-proposal; do
   test -f "${BT_DOCS_ROOT}/${t}/ops/${yyyymm}/task_ledger.jsonl"
   count="$(ls -1 "${BT_DOCS_ROOT}/${t}/evidence/${yyyymm}"/acceptance_report-mvp-${t}-*.json | wc -l | tr -d ' ')"
   [[ "${count}" == "2" ]]
@@ -29,11 +29,12 @@ from pathlib import Path
 
 obj = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
 assert obj['all_closure_ok'] is True
-assert len(obj['teams']) == 3
+assert len(obj['teams']) == 4
 expected_owners = {
     "team-knowledge": "scholar",
     "team-rd": "rd_lead",
     "team-smart3d": "smart3d_lead",
+    "team-proposal": "proposal_lead",
 }
 for team in obj['teams']:
     assert team['target_tasks'] == 2

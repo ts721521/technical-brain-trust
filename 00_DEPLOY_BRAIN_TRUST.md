@@ -221,35 +221,35 @@ crontab -l | rg BT_RUNTIME_AUDIT -n
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
 
-## 阶段三MVP闭环（知识团队 + 研发团队）
+## 阶段三MVP闭环（知识团队 + 研发团队 + Smart3D 团队）
 
 ```bash
-# 生成两支团队闭环证据（发布->执行->审核->验收->done）
+# 生成三支团队闭环证据（发布->执行->审核->验收->done）
 ./scripts/run_mvp_team_closure.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
-  --teams team-knowledge,team-rd \
+  --teams team-knowledge,team-rd,team-smart3d \
   --tasks-per-team 3
 ```
 
 验证点：
-- `team-knowledge/team-rd` 各自产生 `task_ledger.jsonl`
+- `team-knowledge/team-rd/team-smart3d` 各自产生 `task_ledger.jsonl`
 - 各自产生 `acceptance_report-*.json`
 - 汇总报告产出到 `team-brain-trust/ops/<yyyymm>/mvp_team_closure_report-*.json`
 
-## 阶段四扩容闭环（Smart3D 团队）
+## 阶段四扩容闭环（Proposal 团队）
 
 ```bash
-# 生成 Smart3D 团队闭环证据（发布->执行->审核->验收->done）
+# 生成 Proposal 团队闭环证据（发布->执行->审核->验收->done）
 ./scripts/run_mvp_team_closure.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
-  --teams team-smart3d \
+  --teams team-proposal \
   --tasks-per-team 3
 ```
 
 验证点：
-- `team-smart3d` 产生 `task_ledger.jsonl`
+- `team-proposal` 产生 `task_ledger.jsonl`
 - 产生 `acceptance_report-*.json`
-- 汇总报告包含 `team-smart3d` 且 owner 为 `smart3d_lead`
+- 汇总报告包含 `team-proposal` 且 owner 为 `proposal_lead`
 
 ## 第零步：加载环境变量并校验
 

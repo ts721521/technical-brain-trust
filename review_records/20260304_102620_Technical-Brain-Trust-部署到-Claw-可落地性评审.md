@@ -756,3 +756,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 强化MVP测试覆盖 Smart3D | `scripts/tests/test_mvp_team_closure.sh` | 防止团队扩容时 owner/闭环证据回归失效。 | 已完成（新增 `team-smart3d` 测试与 owner 断言） | 2026-03-07 |
 | 部署文档新增 Smart3D 扩容入口 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md` | 明确“阶段三后继续扩容”可执行命令，减少人工判断。 | 已完成（新增 `team-smart3d` 闭环命令与验证点） | 2026-03-07 |
 | 发布元数据与版本推进 | `config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保持发布文档、元数据、校验脚本一致。 | 已完成（版本升级到 `v1.6.2`，新增 Smart3D 验收命令） | 2026-03-07 |
+
+## 38. 下一阶段继续：跨团队覆盖收敛（Smart3D + Proposal）留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 运行态审计默认团队扩容 | `scripts/runtime_health_audit.sh` | 原默认仅覆盖 `team-knowledge/team-rd`，未覆盖 Smart3D/Proposal，存在监控盲区。 | 已完成（默认团队扩展为 `team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal`） | 2026-03-07 |
+| 阶段二收敛脚本台账初始化扩容 | `scripts/phase2_runtime_convergence.sh` | 防止审计先报“缺台账”，保证扩容团队纳入同一收敛链。 | 已完成（初始化同上5支团队台账） | 2026-03-07 |
+| MVP闭环默认范围扩容 | `scripts/run_mvp_team_closure.sh` | 将 Smart3D 从“手工补跑”升级为默认覆盖，减少漏执行。 | 已完成（默认 teams 改为 `team-knowledge,team-rd,team-smart3d`） | 2026-03-07 |
+| Proposal owner 映射与回归覆盖 | `scripts/run_mvp_team_closure.sh`;`scripts/tests/test_mvp_team_closure.sh` | 避免 `team-proposal` 执行 owner 错配。 | 已完成（`team-proposal -> proposal_lead`，测试已断言） | 2026-03-07 |
+| 发布文档与元数据同步 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md`;`config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保证“脚本可执行范围”与“文档/发布版本”一致，避免 AI 发布漂移。 | 已完成（版本推进 `v1.6.3`，新增 Proposal 扩容命令） | 2026-03-07 |

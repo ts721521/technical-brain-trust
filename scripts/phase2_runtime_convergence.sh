@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
 INSTALL_CRON="true"
-AUDIT_TEAMS_CSV="${BT_AUDIT_TEAMS_CSV:-team-brain-trust,team-knowledge,team-rd}"
+AUDIT_TEAMS_CSV="${BT_AUDIT_TEAMS_CSV:-team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal}"
 
 usage() {
   cat <<USAGE
