@@ -1,5 +1,34 @@
 # Deployment Changelog
 
+## v1.6.6 (2026-03-07)
+
+### Changes
+- Added periodic quality compaction script:
+  - `scripts/quality_evolution_compact.sh`
+  - outputs daily quality trend reports (json + md).
+- Integrated quality compaction into runtime daily audit:
+  - `runtime_health_audit.sh` now generates and registers `quality_evolution_report-*`.
+  - runtime report includes `quality_evolution` section and threshold-based P1 hint.
+- Added quality compaction regression test:
+  - `scripts/tests/test_quality_evolution_compact.sh`
+- Updated CI/release manifest/release metadata/docs to include new script and checks.
+
+### Compatibility Impact
+- Backward compatible; no breaking change to existing fields.
+- Daily runtime audit now emits two additional ops artifacts.
+
+### Migration Actions
+- Run:
+  - `scripts/quality_evolution_compact.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --teams team-knowledge,team-rd,team-smart3d,team-proposal --window-days 30 --slot-time 050000`
+- Confirm outputs under:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/quality_evolution_report-*.json`
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/quality_evolution_report-*.md`
+
+### Verification Evidence
+- `scripts/tests/test_quality_evolution_compact.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.5 (2026-03-07)
 
 ### Changes

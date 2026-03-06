@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REGISTER_SCRIPT="${ROOT_DIR}/scripts/register_artifact_index.sh"
+QUALITY_COMPACT_SCRIPT="${ROOT_DIR}/scripts/quality_evolution_compact.sh"
 
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
@@ -11,6 +12,8 @@ TEAMS_CSV="team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal"
 NOTIFY_ON_ANOMALY="true"
 QUEUE_STATE_FILE="${BT_QUEUE_STATE_FILE:-$HOME/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json}"
 QUEUE_FAILURE_WINDOW_HOURS="${BT_QUEUE_FAILURE_WINDOW_HOURS:-24}"
+QUALITY_WINDOW_DAYS="${BT_QUALITY_WINDOW_DAYS:-30}"
+QUALITY_BLOCKED_RATE_THRESHOLD="${BT_QUALITY_BLOCKED_RATE_THRESHOLD:-0.20}"
 
 usage() {
   cat <<USAGE
@@ -21,6 +24,8 @@ Outputs (daily):
   agent_model_inventory-YYYYMMDD-HHMMSS.md
   team_topology-YYYYMMDD-HHMMSS.md
   improvement_backlog-YYYYMMDD-HHMMSS.md
+  quality_evolution_report-YYYYMMDD-HHMMSS.json
+  quality_evolution_report-YYYYMMDD-HHMMSS.md
 USAGE
 }
 
@@ -77,6 +82,8 @@ runtime_json="${out_dir}/runtime_health_report-${run_date}-${SLOT_TIME}.json"
 inventory_md="${out_dir}/agent_model_inventory-${run_date}-${SLOT_TIME}.md"
 topology_md="${out_dir}/team_topology-${run_date}-${SLOT_TIME}.md"
 backlog_md="${out_dir}/improvement_backlog-${run_date}-${SLOT_TIME}.md"
+quality_json="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.json"
+quality_md="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.md"
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "${tmp_dir}"' EXIT
@@ -611,8 +618,95 @@ runtime_report["alert"] = alert_result
 runtime_json_path.write_text(json.dumps(runtime_report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 PY
 
+quality_status="skipped"
+if [[ -x "${QUALITY_COMPACT_SCRIPT}" ]]; then
+  if "${QUALITY_COMPACT_SCRIPT}" \
+      --docs-root "${DOCS_ROOT}" \
+      --team "${TEAM_ID}" \
+      --teams "${TEAMS_CSV}" \
+      --window-days "${QUALITY_WINDOW_DAYS}" \
+      --slot-time "${SLOT_TIME}" \
+      --out-dir "${out_dir}" >/dev/null; then
+    quality_status="generated"
+  else
+    quality_status="failed"
+  fi
+fi
+
+python3 - "${runtime_json}" "${backlog_md}" "${quality_json}" "${quality_md}" "${quality_status}" "${QUALITY_BLOCKED_RATE_THRESHOLD}" <<'PY'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+runtime_path = Path(sys.argv[1])
+backlog_path = Path(sys.argv[2])
+quality_json_path = Path(sys.argv[3])
+quality_md_path = Path(sys.argv[4])
+quality_status = sys.argv[5]
+blocked_threshold = float(sys.argv[6])
+
+if not runtime_path.exists():
+    raise SystemExit(0)
+
+runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+p0_items = list(runtime.get("improvement_backlog", {}).get("p0", []))
+p1_items = list(runtime.get("improvement_backlog", {}).get("p1", []))
+
+quality_summary = {
+    "status": quality_status,
+    "report_json": str(quality_json_path),
+    "report_md": str(quality_md_path),
+}
+
+if quality_status == "generated" and quality_json_path.exists():
+    try:
+        qdata = json.loads(quality_json_path.read_text(encoding="utf-8"))
+        global_blocked_rate = float(qdata.get("global", {}).get("blocked_rate", 0.0) or 0.0)
+        quality_summary["global"] = qdata.get("global", {})
+        quality_summary["recommendations"] = qdata.get("recommendations", [])
+        if global_blocked_rate >= blocked_threshold:
+            p1_items.append(
+                f"质量演进 blocked_rate={global_blocked_rate:.2%} 超阈值（{blocked_threshold:.0%}），建议触发专项复盘。"
+            )
+    except Exception as exc:
+        quality_summary["status"] = "parse_failed"
+        quality_summary["error"] = str(exc)
+        p1_items.append("质量演进报告解析失败，需检查 quality_evolution_report 产物。")
+elif quality_status == "failed":
+    p1_items.append("质量演进报告生成失败，需检查 quality_evolution_compact 脚本执行。")
+
+runtime["quality_evolution"] = quality_summary
+runtime.setdefault("improvement_backlog", {})["p0"] = p0_items
+runtime.setdefault("improvement_backlog", {})["p1"] = p1_items
+runtime_path.write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+lines = [
+    "# Improvement Backlog",
+    "",
+    f"- Generated at: `{datetime.now().isoformat(timespec='seconds')}`",
+    "",
+    "## P0",
+]
+if p0_items:
+    for i, item in enumerate(p0_items, 1):
+        lines.append(f"{i}. {item}")
+else:
+    lines.append("1. 无")
+
+lines.append("\n## P1")
+if p1_items:
+    for i, item in enumerate(p1_items, 1):
+        lines.append(f"{i}. {item}")
+else:
+    lines.append("1. 无")
+
+backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+
 if [[ -x "${REGISTER_SCRIPT}" ]]; then
-  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}"; do
+  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}"; do
+    [[ -f "${f}" ]] || continue
     "${REGISTER_SCRIPT}" \
       --docs-root "${DOCS_ROOT}" \
       --team "${TEAM_ID}" \
@@ -629,3 +723,5 @@ echo "- ${runtime_json}"
 echo "- ${inventory_md}" 
 echo "- ${topology_md}" 
 echo "- ${backlog_md}" 
+echo "- ${quality_json}"
+echo "- ${quality_md}"

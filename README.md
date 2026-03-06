@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.5
+./scripts/build_release_branch.sh --version v1.6.6
 ```
 
 Pre-publish safety gate:
@@ -96,6 +96,8 @@ Daily 05:00 runtime audit outputs:
 - `agent_model_inventory-YYYYMMDD-050000.md`
 - `team_topology-YYYYMMDD-050000.md`
 - `improvement_backlog-YYYYMMDD-050000.md`
+- `quality_evolution_report-YYYYMMDD-050000.json`
+- `quality_evolution_report-YYYYMMDD-050000.md`
 
 MVP closure smoke (knowledge + rd + smart3d teams):
 

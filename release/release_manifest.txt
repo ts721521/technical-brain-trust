@@ -60,6 +60,7 @@ scripts/task_ledger.sh
 scripts/check_interface_bindings.sh
 scripts/runtime_health_audit.sh
 scripts/bootstrap_agent_sessions.sh
+scripts/quality_evolution_compact.sh
 scripts/install_runtime_audit_cron.sh
 scripts/phase2_runtime_convergence.sh
 scripts/run_mvp_team_closure.sh
@@ -67,4 +68,5 @@ scripts/tests/test_task_ledger.sh
 scripts/tests/test_acceptance_gate.sh
 scripts/tests/test_runtime_health_audit.sh
 scripts/tests/test_bootstrap_agent_sessions.sh
+scripts/tests/test_quality_evolution_compact.sh
 scripts/tests/test_mvp_team_closure.sh

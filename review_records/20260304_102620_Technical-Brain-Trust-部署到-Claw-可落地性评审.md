@@ -785,3 +785,12 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 产物台账接入 QEL 文件 | `scripts/run_brain_trust_review.sh` | 保证新产物可审计、可检索。 | 已完成（`register_artifact_indexes` 已纳入两个新文件） | 2026-03-07 |
 | 回归测试增强 | `scripts/test_run_brain_trust_review_regression.sh` | 防止后续改动导致 Stage5 产物丢失。 | 已完成（正常/失败路径都断言 `quality_improvement_log.jsonl`，正常路径断言 `quality_baseline.yaml`） | 2026-03-07 |
 | 配置与发布契约同步 | `config/brain_trust_config.yaml`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`docs/*.md` | 保证文档、元数据、验收命令一致。 | 已完成（版本推进 `v1.6.5`） | 2026-03-07 |
+
+## 41. 下一阶段继续：QEL周期汇总工程化留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增质量演进汇总脚本 | `scripts/quality_evolution_compact.sh` | QEL 之前只有单次日志，缺少周期趋势与团队对比视图。 | 已完成（输出 `quality_evolution_report-*.json/.md`） | 2026-03-07 |
+| 日报接入质量演进汇总 | `scripts/runtime_health_audit.sh` | 让 05:00 日报自动包含质量趋势，不再需要手工汇总。 | 已完成（新增 `quality_evolution` 段与阈值告警逻辑） | 2026-03-07 |
+| 新增质量汇总测试 | `scripts/tests/test_quality_evolution_compact.sh` | 防止脚本回归导致质量趋势缺失。 | 已完成（测试通过） | 2026-03-07 |
+| CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`docs/*.md` | 保证新增能力可发布、可验收、可复现。 | 已完成（版本推进 `v1.6.6`） | 2026-03-07 |

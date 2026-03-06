@@ -218,6 +218,14 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
   --team team-brain-trust \
   --strict false
 
+# 2.2) 生成质量演进汇总（QEL周期视图）
+./scripts/quality_evolution_compact.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --teams team-knowledge,team-rd,team-smart3d,team-proposal \
+  --window-days 30 \
+  --slot-time 050000
+
 # 3) 查看定时任务
 crontab -l | rg BT_RUNTIME_AUDIT -n
 ```

@@ -125,7 +125,9 @@ for f in \
   "runtime_health_report-${run_date}-050000.json" \
   "agent_model_inventory-${run_date}-050000.md" \
   "team_topology-${run_date}-050000.md" \
-  "improvement_backlog-${run_date}-050000.md"; do
+  "improvement_backlog-${run_date}-050000.md" \
+  "quality_evolution_report-${run_date}-050000.json" \
+  "quality_evolution_report-${run_date}-050000.md"; do
   test -f "${base}/${f}"
 done
 
@@ -142,6 +144,7 @@ assert obj['queue_summary']['pending'] == 1
 assert obj['agent_bootstrap']['pending_count_raw'] == 2
 assert obj['agent_bootstrap']['pending_count_actionable'] == 2
 assert 'main' in obj['agent_bootstrap']['pending_agents_raw']
+assert obj['quality_evolution']['status'] in ('generated', 'parse_failed')
 assert 'improvement_backlog' in obj
 PY
 

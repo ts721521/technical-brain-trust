@@ -30,6 +30,7 @@ jobs:
           bash -n scripts/check_interface_bindings.sh
           bash -n scripts/runtime_health_audit.sh
           bash -n scripts/bootstrap_agent_sessions.sh
+          bash -n scripts/quality_evolution_compact.sh
           bash -n scripts/install_runtime_audit_cron.sh
           bash -n scripts/phase2_runtime_convergence.sh
           bash -n scripts/run_mvp_team_closure.sh
@@ -37,6 +38,7 @@ jobs:
           bash -n scripts/tests/test_acceptance_gate.sh
           bash -n scripts/tests/test_runtime_health_audit.sh
           bash -n scripts/tests/test_bootstrap_agent_sessions.sh
+          bash -n scripts/tests/test_quality_evolution_compact.sh
           bash -n scripts/tests/test_mvp_team_closure.sh
 
       - name: Regression suite
@@ -47,4 +49,5 @@ jobs:
           ./scripts/tests/test_acceptance_gate.sh
           ./scripts/tests/test_runtime_health_audit.sh
           ./scripts/tests/test_bootstrap_agent_sessions.sh
+          ./scripts/tests/test_quality_evolution_compact.sh
           ./scripts/tests/test_mvp_team_closure.sh
