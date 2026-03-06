@@ -1,4 +1,4 @@
-# Release Overview (v1.6.9)
+# Release Overview (v1.6.10)
 
 ## 1. 机制总览（文字图）
 

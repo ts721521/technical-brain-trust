@@ -33,6 +33,7 @@ Outputs (daily):
   agent_model_inventory-YYYYMMDD-HHMMSS.md
   team_topology-YYYYMMDD-HHMMSS.md
   improvement_backlog-YYYYMMDD-HHMMSS.md
+  runtime_executive_summary-YYYYMMDD-HHMMSS.md
   quality_evolution_report-YYYYMMDD-HHMMSS.json
   quality_evolution_report-YYYYMMDD-HHMMSS.md
   route_learning_report-YYYYMMDD-HHMMSS.json
@@ -95,6 +96,7 @@ runtime_json="${out_dir}/runtime_health_report-${run_date}-${SLOT_TIME}.json"
 inventory_md="${out_dir}/agent_model_inventory-${run_date}-${SLOT_TIME}.md"
 topology_md="${out_dir}/team_topology-${run_date}-${SLOT_TIME}.md"
 backlog_md="${out_dir}/improvement_backlog-${run_date}-${SLOT_TIME}.md"
+summary_md="${out_dir}/runtime_executive_summary-${run_date}-${SLOT_TIME}.md"
 quality_json="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.json"
 quality_md="${out_dir}/quality_evolution_report-${run_date}-${SLOT_TIME}.md"
 route_json="${out_dir}/route_learning_report-${run_date}-${SLOT_TIME}.json"
@@ -921,8 +923,107 @@ else:
 backlog_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
+python3 - "${runtime_json}" "${summary_md}" "${quality_json}" "${route_json}" "${backlog_sync_json}" "${ledger_audit_json}" <<'PY'
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+runtime_path = Path(sys.argv[1])
+summary_path = Path(sys.argv[2])
+quality_path = Path(sys.argv[3])
+route_path = Path(sys.argv[4])
+backlog_sync_path = Path(sys.argv[5])
+ledger_audit_path = Path(sys.argv[6])
+
+if not runtime_path.exists():
+    raise SystemExit(0)
+
+runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+p0 = list(runtime.get("improvement_backlog", {}).get("p0", []))
+p1 = list(runtime.get("improvement_backlog", {}).get("p1", []))
+
+security = runtime.get("security_summary", {}) or {}
+queue = runtime.get("queue_summary", {}) or {}
+model_drift = runtime.get("model_drift", {}) or {}
+bootstrap = runtime.get("agent_bootstrap", {}) or {}
+backlog_sync = runtime.get("backlog_sync", {}) or {}
+ledger_audit = runtime.get("task_ledger_audit", {}) or {}
+quality = runtime.get("quality_evolution", {}) or {}
+route = runtime.get("route_learning", {}) or {}
+
+health = "HEALTHY"
+if p0:
+    health = "CRITICAL"
+elif p1:
+    health = "ATTENTION"
+
+lines = [
+    "# Runtime Executive Summary",
+    "",
+    f"- Generated at: `{datetime.now().isoformat(timespec='seconds')}`",
+    f"- Overall health: `{health}`",
+    "",
+    "## Key Metrics",
+    f"- Security: critical={int(security.get('critical', 0) or 0)}, warn={int(security.get('warn', 0) or 0)}",
+    f"- Queue: failed_recent={int(queue.get('failed_recent', 0) or 0)}, pending={int(queue.get('pending', 0) or 0)}, running={int(queue.get('running', 0) or 0)}",
+    f"- Model drift count: {int(model_drift.get('count', 0) or 0)}",
+    f"- Agent bootstrap actionable pending: {int(bootstrap.get('pending_count_actionable', 0) or 0)}",
+    "",
+    "## Lifecycle Audits",
+    f"- Backlog sync: `{backlog_sync.get('status', 'unknown')}`",
+]
+
+bs_summary = backlog_sync.get("summary", {}) if isinstance(backlog_sync.get("summary"), dict) else {}
+if bs_summary:
+    lines.append(
+        f"  - created={int(bs_summary.get('created_count', 0) or 0)}, skipped={int(bs_summary.get('skipped_count', 0) or 0)}, failed={int(bs_summary.get('failed_count', 0) or 0)}"
+    )
+
+lines.append(f"- Task ledger SLA audit: `{ledger_audit.get('status', 'unknown')}`")
+la_summary = ledger_audit.get("summary", {}) if isinstance(ledger_audit.get("summary"), dict) else {}
+if la_summary:
+    lines.append(
+        f"  - open_total={int(la_summary.get('open_total', 0) or 0)}, stale_total={int(la_summary.get('stale_total', 0) or 0)}"
+    )
+
+lines.extend(
+    [
+        f"- Quality evolution: `{quality.get('status', 'unknown')}`",
+        f"- Route learning: `{route.get('status', 'unknown')}`",
+        "",
+        "## Action List",
+    ]
+)
+
+if p0:
+    lines.append("### P0")
+    for i, item in enumerate(p0, 1):
+        lines.append(f"{i}. {item}")
+if p1:
+    lines.append("### P1")
+    for i, item in enumerate(p1, 1):
+        lines.append(f"{i}. {item}")
+if not p0 and not p1:
+    lines.append("1. 无（当前运行态稳定）")
+
+lines.extend(
+    [
+        "",
+        "## Artifacts",
+        f"- runtime: `{runtime_path}`",
+        f"- quality report: `{quality_path}`",
+        f"- route report: `{route_path}`",
+        f"- backlog sync: `{backlog_sync_path}`",
+        f"- task ledger audit: `{ledger_audit_path}`",
+    ]
+)
+
+summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+
 if [[ -x "${REGISTER_SCRIPT}" ]]; then
-  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${backlog_sync_json}" "${ledger_audit_json}"; do
+  for f in "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" "${summary_md}" "${quality_json}" "${quality_md}" "${route_json}" "${route_md}" "${backlog_sync_json}" "${ledger_audit_json}"; do
     [[ -f "${f}" ]] || continue
     "${REGISTER_SCRIPT}" \
       --docs-root "${DOCS_ROOT}" \
@@ -940,6 +1041,7 @@ echo "- ${runtime_json}"
 echo "- ${inventory_md}" 
 echo "- ${topology_md}" 
 echo "- ${backlog_md}" 
+echo "- ${summary_md}"
 echo "- ${quality_json}"
 echo "- ${quality_md}"
 echo "- ${route_json}"

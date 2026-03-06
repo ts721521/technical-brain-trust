@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.9
+# Brain Trust Deployment Release v1.6.10
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.9`
+- Release version: `v1.6.10`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.9
+./scripts/build_release_branch.sh --version v1.6.10
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -272,6 +272,7 @@ git push origin release --tags
   - `agent_model_inventory-YYYYMMDD-050000.md`
   - `team_topology-YYYYMMDD-050000.md`
   - `improvement_backlog-YYYYMMDD-050000.md`
+  - `runtime_executive_summary-YYYYMMDD-050000.md`
   - `quality_evolution_report-YYYYMMDD-050000.json`
   - `quality_evolution_report-YYYYMMDD-050000.md`
   - `route_learning_report-YYYYMMDD-050000.json`

@@ -127,6 +127,7 @@ for f in \
   "agent_model_inventory-${run_date}-050000.md" \
   "team_topology-${run_date}-050000.md" \
   "improvement_backlog-${run_date}-050000.md" \
+  "runtime_executive_summary-${run_date}-050000.md" \
   "quality_evolution_report-${run_date}-050000.json" \
   "quality_evolution_report-${run_date}-050000.md" \
   "backlog_sync_report-${run_date}-050000.json" \
@@ -154,5 +155,7 @@ assert obj['backlog_sync']['summary']['created_count'] >= 1
 assert obj['task_ledger_audit']['status'] == 'generated'
 assert 'improvement_backlog' in obj
 PY
+
+rg -n "Overall health|Key Metrics|Lifecycle Audits|Action List" "${base}/runtime_executive_summary-${run_date}-050000.md" >/dev/null
 
 echo "runtime_health_audit tests passed"

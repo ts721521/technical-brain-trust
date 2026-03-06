@@ -1,5 +1,33 @@
 # Deployment Changelog
 
+## v1.6.10 (2026-03-07)
+
+### Changes
+- Added runtime executive one-page summary output in daily audit:
+  - `runtime_executive_summary-YYYYMMDD-050000.md`
+  - includes health status, key metrics, lifecycle audit status, and action list.
+- Integrated executive summary generation into:
+  - `scripts/runtime_health_audit.sh`
+  - artifact registration pipeline.
+- Updated runtime audit regression:
+  - `scripts/tests/test_runtime_health_audit.sh` now validates executive summary artifact and key sections.
+- Updated release docs/metadata to include new artifact contract and checks.
+
+### Compatibility Impact
+- Backward compatible.
+- Daily runtime audit now emits one extra markdown artifact for human monitoring without login.
+
+### Migration Actions
+- Run:
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+- Verify output:
+  - `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/runtime_executive_summary-*.md`
+
+### Verification Evidence
+- `scripts/tests/test_runtime_health_audit.sh`
+- `scripts/test_run_brain_trust_review_regression.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.9 (2026-03-07)
 
 ### Changes
