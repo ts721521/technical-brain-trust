@@ -202,7 +202,8 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
 ./scripts/phase2_runtime_convergence.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
   --team team-brain-trust \
-  --install-cron true
+  --install-cron true \
+  --bootstrap-agent-sessions true
 
 # 2) 手工触发日报（可随时重跑）
 ./scripts/runtime_health_audit.sh \
@@ -210,6 +211,12 @@ proof 未通过时强制失败并写入：`error_code=completion_without_artifac
   --team team-brain-trust \
   --slot-time 050000 \
   --notify true
+
+# 2.1) 单独执行一次 Agent bootstrap 收敛（可重复）
+./scripts/bootstrap_agent_sessions.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --strict false
 
 # 3) 查看定时任务
 crontab -l | rg BT_RUNTIME_AUDIT -n

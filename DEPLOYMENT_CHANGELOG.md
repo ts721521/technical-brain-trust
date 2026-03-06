@@ -1,5 +1,34 @@
 # Deployment Changelog
 
+## v1.6.4 (2026-03-07)
+
+### Changes
+- Added `scripts/bootstrap_agent_sessions.sh` to actively warm key agents and reduce `bootstrapPending` runtime blockage.
+- Integrated optional bootstrap-session warmup into `scripts/phase2_runtime_convergence.sh` (`--bootstrap-agent-sessions true|false`, default true).
+- Extended `runtime_health_audit.sh` with `agent_bootstrap` diagnostics:
+  - `pending_count`
+  - `pending_agents`
+  - backlog hint when pending agents exist.
+- Added regression coverage for session warmup:
+  - `scripts/tests/test_bootstrap_agent_sessions.sh`
+  - enhanced `scripts/tests/test_runtime_health_audit.sh` for bootstrap diagnostics.
+- Updated CI/release manifest/release metadata/docs to include new script and checks.
+
+### Compatibility Impact
+- Backward compatible; no breaking contract changes.
+- Phase2 convergence now performs lightweight agent warmup by default (best effort).
+
+### Migration Actions
+- Run:
+  - `scripts/bootstrap_agent_sessions.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --strict false`
+  - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
+
+### Verification Evidence
+- `bash -n scripts/bootstrap_agent_sessions.sh`
+- `bash -n scripts/tests/test_bootstrap_agent_sessions.sh`
+- `scripts/tests/test_bootstrap_agent_sessions.sh`
+- `scripts/tests/test_runtime_health_audit.sh`
+
 ## v1.6.3 (2026-03-07)
 
 ### Changes

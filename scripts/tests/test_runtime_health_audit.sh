@@ -31,7 +31,17 @@ fi
 
 if [[ "${1:-}" == "status" && "${2:-}" == "--json" ]]; then
   cat <<'JSON'
-{"ok":true}
+{
+  "ok": true,
+  "agents": {
+    "bootstrapPendingCount": 2,
+    "agents": [
+      {"id":"main","bootstrapPending":true},
+      {"id":"pangu","bootstrapPending":true},
+      {"id":"scholar","bootstrapPending":false}
+    ]
+  }
+}
 JSON
   exit 0
 fi
@@ -129,6 +139,9 @@ assert obj['security_summary']['critical'] == 1
 assert obj['queue_summary']['failed_total'] == 1
 assert obj['queue_summary']['failed_recent'] in (0, 1)
 assert obj['queue_summary']['pending'] == 1
+assert obj['agent_bootstrap']['pending_count_raw'] == 2
+assert obj['agent_bootstrap']['pending_count_actionable'] == 2
+assert 'main' in obj['agent_bootstrap']['pending_agents_raw']
 assert 'improvement_backlog' in obj
 PY
 

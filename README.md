@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.3
+./scripts/build_release_branch.sh --version v1.6.4
 ```
 
 Pre-publish safety gate:
@@ -83,6 +83,12 @@ git switch release
   --docs-root /Volumes/TB512/3_ClawDocs \
   --team team-brain-trust \
   --install-cron true
+
+# 可选：主动收敛 bootstrapPending（建议在阶段二后执行一次）
+./scripts/bootstrap_agent_sessions.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --team team-brain-trust \
+  --strict false
 ```
 
 Daily 05:00 runtime audit outputs:

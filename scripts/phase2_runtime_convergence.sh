@@ -6,16 +6,18 @@ DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
 INSTALL_CRON="true"
 AUDIT_TEAMS_CSV="${BT_AUDIT_TEAMS_CSV:-team-brain-trust,team-knowledge,team-rd,team-smart3d,team-proposal}"
+BOOTSTRAP_AGENT_SESSIONS="${BT_BOOTSTRAP_AGENT_SESSIONS:-true}"
 
 usage() {
   cat <<USAGE
-Usage: $(basename "$0") [--docs-root <path>] [--team <team-id>] [--install-cron true|false]
+Usage: $(basename "$0") [--docs-root <path>] [--team <team-id>] [--install-cron true|false] [--bootstrap-agent-sessions true|false]
 
 Phase2 convergence actions:
 1) Calibrate role model chains (architect/critic/innovator + pangu/scholar/feige_notifier)
 2) Apply minimum security baseline (telegram group allowlist + gateway auth token)
 3) Restart gateway and run runtime audit
 4) Optionally install daily 05:00 runtime audit cron
+5) Optionally warm agent sessions to reduce bootstrapPending
 USAGE
 }
 
@@ -31,6 +33,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --install-cron)
       INSTALL_CRON="${2:-}"
+      shift 2
+      ;;
+    --bootstrap-agent-sessions)
+      BOOTSTRAP_AGENT_SESSIONS="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -155,6 +161,13 @@ if [[ "${INSTALL_CRON}" == "true" ]]; then
   "${ROOT_DIR}/scripts/install_runtime_audit_cron.sh" --docs-root "${DOCS_ROOT}" --team "${TEAM_ID}" --notify true >/dev/null
 fi
 
+if [[ "${BOOTSTRAP_AGENT_SESSIONS}" == "true" && -x "${ROOT_DIR}/scripts/bootstrap_agent_sessions.sh" ]]; then
+  "${ROOT_DIR}/scripts/bootstrap_agent_sessions.sh" \
+    --docs-root "${DOCS_ROOT}" \
+    --team "${TEAM_ID}" \
+    --strict false >/dev/null || true
+fi
+
 yyyymm="$(date +%Y%m)"
 ts="$(date +%Y%m%d-%H%M%S)"
 out_dir="${DOCS_ROOT}/${TEAM_ID}/ops/${yyyymm}"
@@ -173,7 +186,7 @@ done
 
 "${ROOT_DIR}/scripts/runtime_health_audit.sh" --docs-root "${DOCS_ROOT}" --team "${TEAM_ID}" --slot-time 050000 --notify true >/dev/null
 
-python3 - "${record_file}" "${summary_before}" "${summary_after}" \
+python3 - "${record_file}" "${summary_before}" "${summary_after}" "${BOOTSTRAP_AGENT_SESSIONS}" \
   "${architect_primary}" "$(printf "%s\n" "${architect_fallbacks[@]}")" \
   "${critic_primary}" "$(printf "%s\n" "${critic_fallbacks[@]}")" \
   "${innovator_primary}" "$(printf "%s\n" "${innovator_fallbacks[@]}")" \
@@ -188,18 +201,19 @@ from pathlib import Path
 record_file = Path(sys.argv[1])
 before = json.loads(sys.argv[2])
 after = json.loads(sys.argv[3])
-architect_primary = sys.argv[4]
-architect_fallbacks = [x for x in sys.argv[5].splitlines() if x.strip()]
-critic_primary = sys.argv[6]
-critic_fallbacks = [x for x in sys.argv[7].splitlines() if x.strip()]
-innovator_primary = sys.argv[8]
-innovator_fallbacks = [x for x in sys.argv[9].splitlines() if x.strip()]
-pangu_primary = sys.argv[10]
-pangu_fallbacks = [x for x in sys.argv[11].splitlines() if x.strip()]
-scholar_primary = sys.argv[12]
-scholar_fallbacks = [x for x in sys.argv[13].splitlines() if x.strip()]
-feige_primary = sys.argv[14]
-feige_fallbacks = [x for x in sys.argv[15].splitlines() if x.strip()]
+bootstrap_sessions = sys.argv[4]
+architect_primary = sys.argv[5]
+architect_fallbacks = [x for x in sys.argv[6].splitlines() if x.strip()]
+critic_primary = sys.argv[7]
+critic_fallbacks = [x for x in sys.argv[8].splitlines() if x.strip()]
+innovator_primary = sys.argv[9]
+innovator_fallbacks = [x for x in sys.argv[10].splitlines() if x.strip()]
+pangu_primary = sys.argv[11]
+pangu_fallbacks = [x for x in sys.argv[12].splitlines() if x.strip()]
+scholar_primary = sys.argv[13]
+scholar_fallbacks = [x for x in sys.argv[14].splitlines() if x.strip()]
+feige_primary = sys.argv[15]
+feige_fallbacks = [x for x in sys.argv[16].splitlines() if x.strip()]
 
 payload = {
     "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -224,6 +238,7 @@ payload = {
         "telegram groupPolicy switched to allowlist",
         "gateway auth token ensured",
         "daily 05:00 runtime audit cron installed",
+        f"bootstrap agent sessions enabled={bootstrap_sessions}",
     ],
 }
 record_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

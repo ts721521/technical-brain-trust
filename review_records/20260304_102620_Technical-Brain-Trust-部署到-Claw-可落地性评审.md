@@ -766,3 +766,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | MVP闭环默认范围扩容 | `scripts/run_mvp_team_closure.sh` | 将 Smart3D 从“手工补跑”升级为默认覆盖，减少漏执行。 | 已完成（默认 teams 改为 `team-knowledge,team-rd,team-smart3d`） | 2026-03-07 |
 | Proposal owner 映射与回归覆盖 | `scripts/run_mvp_team_closure.sh`;`scripts/tests/test_mvp_team_closure.sh` | 避免 `team-proposal` 执行 owner 错配。 | 已完成（`team-proposal -> proposal_lead`，测试已断言） | 2026-03-07 |
 | 发布文档与元数据同步 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md`;`config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保证“脚本可执行范围”与“文档/发布版本”一致，避免 AI 发布漂移。 | 已完成（版本推进 `v1.6.3`，新增 Proposal 扩容命令） | 2026-03-07 |
+
+## 39. 下一阶段继续：Agent 初始化阻塞收敛补丁留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 新增 Agent 会话预热脚本 | `scripts/bootstrap_agent_sessions.sh` | 运行态 `bootstrapPendingCount` 长期偏高会导致“任务分配后迟滞执行”。 | 已完成（支持多 agent 轻量预热、strict/non-strict、JSON 报告） | 2026-03-07 |
+| 阶段二收敛接入预热步骤 | `scripts/phase2_runtime_convergence.sh` | 将“初始化阻塞收敛”从人工补救变成标准流程。 | 已完成（新增 `--bootstrap-agent-sessions`，默认开启） | 2026-03-07 |
+| 日报新增初始化阻塞诊断 | `scripts/runtime_health_audit.sh` | 之前日报没有 `bootstrapPending` 维度，隐性阻塞不可见。 | 已完成（新增 `agent_bootstrap.pending_count/pending_agents`） | 2026-03-07 |
+| 新增回归测试覆盖 | `scripts/tests/test_bootstrap_agent_sessions.sh`;`scripts/tests/test_runtime_health_audit.sh` | 防止收敛补丁回归失效。 | 已完成（两项测试通过） | 2026-03-07 |
+| CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保证脚本、文档、验收命令一致，不出现“修了但不验”。 | 已完成（版本推进 `v1.6.4`） | 2026-03-07 |

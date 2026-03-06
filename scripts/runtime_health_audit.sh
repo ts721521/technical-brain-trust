@@ -406,6 +406,47 @@ security_summary = security.get("summary", {}) if isinstance(security, dict) els
 critical = int(security_summary.get("critical", 0) or 0)
 warn = int(security_summary.get("warn", 0) or 0)
 
+status_agents = status.get("agents", {}) if isinstance(status, dict) else {}
+bootstrap_pending_count = 0
+bootstrap_pending_agents = []
+bootstrap_pending_actionable = []
+if isinstance(status_agents, dict):
+    try:
+        bootstrap_pending_count = int(status_agents.get("bootstrapPendingCount", 0) or 0)
+    except Exception:
+        bootstrap_pending_count = 0
+    agents_list = status_agents.get("agents", [])
+    if isinstance(agents_list, list):
+        required_bootstrap_agents = {
+            "main",
+            "pangu",
+            "braintrust",
+            "braintrust_compliance",
+            "scholar",
+            "knowledge_manager",
+            "wenquxing",
+            "rd_lead",
+            "smart3d_lead",
+            "proposal_lead",
+            "feige_notifier",
+            "luban",
+        }
+        for item in agents_list:
+            if not isinstance(item, dict):
+                continue
+            if bool(item.get("bootstrapPending", False)):
+                aid = str(item.get("id", "")).strip()
+                if aid:
+                    bootstrap_pending_agents.append(aid)
+                    try:
+                        sessions_count = int(item.get("sessionsCount", 0) or 0)
+                    except Exception:
+                        sessions_count = 0
+                    if aid in required_bootstrap_agents and sessions_count == 0:
+                        bootstrap_pending_actionable.append(aid)
+    if bootstrap_pending_count <= 0 and bootstrap_pending_agents:
+        bootstrap_pending_count = len(bootstrap_pending_agents)
+
 model_drift_count = sum(1 for x in drift_items if x["drift"])
 
 p0_items = []
@@ -426,6 +467,10 @@ if cron_delivery_issues:
     p1_items.append(f"定时任务投递异常 {len(cron_delivery_issues)} 项。")
 if queue_pending > 0 or queue_running > 0:
     p1_items.append(f"队列积压状态：pending={queue_pending}, running={queue_running}")
+if bootstrap_pending_actionable:
+    p1_items.append(
+        f"关键 Agent 初始化待完成 {len(bootstrap_pending_actionable)} 个（无会话）：{', '.join(bootstrap_pending_actionable)}。"
+    )
 if warn > 0:
     p1_items.append(f"security warn={warn}，建议后续收敛。")
 
@@ -459,6 +504,12 @@ runtime_report = {
     "cron_summary": {
         "total": len(cron_jobs),
         "delivery_issues": cron_delivery_issues,
+    },
+    "agent_bootstrap": {
+        "pending_count_raw": bootstrap_pending_count,
+        "pending_agents_raw": bootstrap_pending_agents,
+        "pending_count_actionable": len(bootstrap_pending_actionable),
+        "pending_agents_actionable": bootstrap_pending_actionable,
     },
     "task_ledger_summary": team_summaries,
     "improvement_backlog": {
