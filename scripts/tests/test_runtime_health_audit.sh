@@ -126,7 +126,8 @@ from pathlib import Path
 
 obj = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
 assert obj['security_summary']['critical'] == 1
-assert obj['queue_summary']['failed'] == 1
+assert obj['queue_summary']['failed_total'] == 1
+assert obj['queue_summary']['failed_recent'] in (0, 1)
 assert obj['queue_summary']['pending'] == 1
 assert 'improvement_backlog' in obj
 PY

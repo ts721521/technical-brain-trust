@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCS_ROOT="${BT_DOCS_ROOT:-/Volumes/TB512/3_ClawDocs}"
 TEAM_ID="${BT_TEAM_ID:-team-brain-trust}"
 INSTALL_CRON="true"
+AUDIT_TEAMS_CSV="${BT_AUDIT_TEAMS_CSV:-team-brain-trust,team-knowledge,team-rd}"
 
 usage() {
   cat <<USAGE
@@ -154,13 +155,23 @@ if [[ "${INSTALL_CRON}" == "true" ]]; then
   "${ROOT_DIR}/scripts/install_runtime_audit_cron.sh" --docs-root "${DOCS_ROOT}" --team "${TEAM_ID}" --notify true >/dev/null
 fi
 
-"${ROOT_DIR}/scripts/runtime_health_audit.sh" --docs-root "${DOCS_ROOT}" --team "${TEAM_ID}" --slot-time 050000 --notify true >/dev/null
-
 yyyymm="$(date +%Y%m)"
 ts="$(date +%Y%m%d-%H%M%S)"
 out_dir="${DOCS_ROOT}/${TEAM_ID}/ops/${yyyymm}"
 mkdir -p "${out_dir}"
 record_file="${out_dir}/runtime_convergence_record-${ts}.json"
+
+# Ensure cross-team task ledgers exist for runtime audit contract.
+IFS=',' read -r -a audit_teams <<< "${AUDIT_TEAMS_CSV}"
+for t in "${audit_teams[@]}"; do
+  t="$(echo "${t}" | xargs)"
+  [[ -n "${t}" ]] || continue
+  ledger_dir="${DOCS_ROOT}/${t}/ops/${yyyymm}"
+  mkdir -p "${ledger_dir}"
+  touch "${ledger_dir}/task_ledger.jsonl"
+done
+
+"${ROOT_DIR}/scripts/runtime_health_audit.sh" --docs-root "${DOCS_ROOT}" --team "${TEAM_ID}" --slot-time 050000 --notify true >/dev/null
 
 python3 - "${record_file}" "${summary_before}" "${summary_after}" \
   "${architect_primary}" "$(printf "%s\n" "${architect_fallbacks[@]}")" \

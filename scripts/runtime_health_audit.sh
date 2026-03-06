@@ -10,6 +10,7 @@ SLOT_TIME="050000"
 TEAMS_CSV="team-brain-trust,team-knowledge,team-rd"
 NOTIFY_ON_ANOMALY="true"
 QUEUE_STATE_FILE="${BT_QUEUE_STATE_FILE:-$HOME/.openclaw/workspaces/pangu/memory/TASK_QUEUE_STATE.json}"
+QUEUE_FAILURE_WINDOW_HOURS="${BT_QUEUE_FAILURE_WINDOW_HOURS:-24}"
 
 usage() {
   cat <<USAGE
@@ -87,7 +88,7 @@ openclaw cron list --json >"${tmp_dir}/cron.json"
 
 python3 - "${tmp_dir}/agents.json" "${tmp_dir}/status.json" "${tmp_dir}/security.json" "${tmp_dir}/cron.json" \
   "${runtime_json}" "${inventory_md}" "${topology_md}" "${backlog_md}" \
-  "${TEAMS_CSV}" "${QUEUE_STATE_FILE}" "${NOTIFY_ON_ANOMALY}" <<'PY'
+  "${TEAMS_CSV}" "${QUEUE_STATE_FILE}" "${NOTIFY_ON_ANOMALY}" "${QUEUE_FAILURE_WINDOW_HOURS}" <<'PY'
 import json
 import os
 import subprocess
@@ -106,6 +107,7 @@ backlog_md_path = Path(sys.argv[8])
 teams_csv = sys.argv[9]
 queue_state_file = Path(sys.argv[10]).expanduser()
 notify_on_anomaly = sys.argv[11].lower() == "true"
+queue_failure_window_hours = int(sys.argv[12])
 
 agents = json.loads(agents_path.read_text(encoding="utf-8"))
 status = json.loads(status_path.read_text(encoding="utf-8"))
@@ -171,6 +173,10 @@ def run_cmd(cmd):
         return out, ""
     except subprocess.CalledProcessError as e:
         return "", (e.output or str(e)).strip()
+
+
+def now_ms():
+    return int(datetime.now(timezone.utc).timestamp() * 1000)
 
 
 def parse_global_fallbacks():
@@ -301,17 +307,27 @@ if available_models:
                 }
             )
 
-queue_failed = 0
+queue_failed_total = 0
+queue_failed_recent = 0
 queue_pending = 0
 queue_running = 0
 if queue_state_file.exists():
     try:
         queue_data = json.loads(queue_state_file.read_text(encoding="utf-8"))
         if isinstance(queue_data, dict):
+            now_ts_ms = now_ms()
+            recent_window_ms = max(1, queue_failure_window_hours) * 3600 * 1000
             for item in queue_data.get("items", []) or []:
                 st = str(item.get("status", "")).lower()
                 if st == "failed":
-                    queue_failed += 1
+                    queue_failed_total += 1
+                    end_ts_ms = int(item.get("end_ts_ms", 0) or 0)
+                    if end_ts_ms <= 0:
+                        end_ts_ms = int(item.get("start_ts_ms", 0) or 0)
+                    if end_ts_ms <= 0:
+                        end_ts_ms = int(item.get("enqueue_ts_ms", 0) or 0)
+                    if end_ts_ms > 0 and now_ts_ms - end_ts_ms <= recent_window_ms:
+                        queue_failed_recent += 1
                 elif st in {"queued", "pending"}:
                     queue_pending += 1
                 elif st in {"dispatched", "running"}:
@@ -361,13 +377,29 @@ for job in cron_jobs:
     if not isinstance(job, dict):
         continue
     state = job.get("state", {}) if isinstance(job.get("state"), dict) else {}
+    delivery_cfg = job.get("delivery", {}) if isinstance(job.get("delivery"), dict) else {}
+    delivery_mode = str(delivery_cfg.get("mode", "none") or "none").lower()
     delivery = str(state.get("lastDeliveryStatus", ""))
+    last_run_status = str(state.get("lastRunStatus", ""))
+    last_error = str(state.get("lastError", ""))
+    last_delivery_error = str(state.get("lastDeliveryError", ""))
     enabled = bool(job.get("enabled", False))
-    if enabled and delivery and delivery not in {"ok", "delivered"}:
+    if not enabled:
+        continue
+    is_issue = False
+    if last_run_status == "error":
+        is_issue = True
+    elif delivery_mode != "none" and delivery in {"failed", "error"}:
+        is_issue = True
+    if is_issue:
         cron_delivery_issues.append({
             "job_id": job.get("id", ""),
             "name": job.get("name", ""),
+            "delivery_mode": delivery_mode,
             "last_delivery": delivery,
+            "last_run_status": last_run_status,
+            "last_error": last_error,
+            "last_delivery_error": last_delivery_error,
         })
 
 security_summary = security.get("summary", {}) if isinstance(security, dict) else {}
@@ -385,8 +417,8 @@ if model_drift_count > 0:
     p0_items.append(f"关键角色模型漂移 {model_drift_count} 项，需执行基线校准。")
 if model_contract_issues:
     p0_items.append(f"存在 {len(model_contract_issues)} 组模型契约缺失（目标模型不在可用列表）。")
-if queue_failed > 0:
-    p0_items.append(f"执行队列存在失败任务 {queue_failed} 条，需排查并回放。")
+if queue_failed_recent > 0:
+    p0_items.append(f"执行队列近{queue_failure_window_hours}小时失败任务 {queue_failed_recent} 条，需排查并回放。")
 
 if missing_ledgers:
     p1_items.append(f"缺少团队台账：{', '.join(missing_ledgers)}")
@@ -394,6 +426,8 @@ if cron_delivery_issues:
     p1_items.append(f"定时任务投递异常 {len(cron_delivery_issues)} 项。")
 if queue_pending > 0 or queue_running > 0:
     p1_items.append(f"队列积压状态：pending={queue_pending}, running={queue_running}")
+if queue_failed_total > 0 and queue_failed_recent == 0:
+    p1_items.append(f"存在历史失败任务 {queue_failed_total} 条（近{queue_failure_window_hours}小时无新增）。")
 if warn > 0:
     p1_items.append(f"security warn={warn}，建议后续收敛。")
 
@@ -417,7 +451,9 @@ runtime_report = {
         "items": drift_items,
     },
     "queue_summary": {
-        "failed": queue_failed,
+        "failed_total": queue_failed_total,
+        "failed_recent": queue_failed_recent,
+        "failure_window_hours": queue_failure_window_hours,
         "pending": queue_pending,
         "running": queue_running,
         "state_file": str(queue_state_file),

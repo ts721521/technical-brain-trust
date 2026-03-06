@@ -713,3 +713,16 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 环境与部署契约同步 | `config/brain_trust_config.yaml`;`scripts/validate_brain_trust_env.sh`;`config/deployment_release.yaml`;`release/release_manifest.txt`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md` | 保证“脚本、文档、发布元数据、CI”同一口径，避免后续 AI 发布偏差。 | 已完成（版本升级 `v1.6.0`，文档一致性检查通过） | 2026-03-07 |
 | 安全基线收敛结果留痕 | `openclaw security audit --json`（运行态） | 验证 P0 安全目标是否达标。 | 已完成（critical=0，high=0；剩余 warn=1 为 `gateway.trusted_proxies_missing`） | 2026-03-07 |
 | 运行态剩余问题留痕 | `runtime_health_report-20260307-050000.json` | 保持“异常可见+可整改”。 | 已记录（队列失败任务=2，cron投递异常=2，团队台账缺口存在） | 2026-03-07 |
+
+## 34. 阶段二遗留问题收口留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 修复队列失败误报口径 | `scripts/runtime_health_audit.sh` | 原逻辑把历史失败长期计入 P0，导致“已恢复系统仍持续告警”。 | 已完成（改为 `failed_total + failed_recent(24h)` 双指标；当前 `failed_recent=0`） | 2026-03-07 |
+| 修复 cron 投递异常误判 | `scripts/runtime_health_audit.sh` | 原逻辑把 `delivery=none/not-requested` 与 `not-delivered` 全部算异常，噪声过高。 | 已完成（仅对 `lastRunStatus=error` 或 `deliveryStatus in {failed,error}` 计入 issue；当前 `delivery_issues=[]`） | 2026-03-07 |
+| 修复跨团队台账缺失 | `scripts/phase2_runtime_convergence.sh` | 审计报“team-knowledge/team-rd 缺台账”，影响跨团队闭环可见性。 | 已完成（收敛脚本自动初始化 `team-brain-trust/team-knowledge/team-rd` 台账） | 2026-03-07 |
+| 修复台账初始化时序 | `scripts/phase2_runtime_convergence.sh` | 台账初始化原在审计之后，导致报告仍显示 `exists=false`。 | 已完成（初始化前置到审计前，报告中三团队 `exists=true`） | 2026-03-07 |
+| 收敛监控 cron 执行负载 | OpenClaw cron job `b8735aa6-0b7d-4613-97bf-c15db61fa9d3` | 监控提示词过重导致超时/不稳定。 | 已完成（改轻量心跳提示词+60秒超时+best-effort；最近状态 `lastRunStatus=ok`） | 2026-03-07 |
+| 收敛 scholar idle cron 超时 | OpenClaw cron job `a91a1133-afb5-4376-8465-0ac0593fa8f3` | Idle 学习任务过重导致连续 timeout。 | 已完成（改轻量离线课题+90秒超时+flash模型；最近状态 `lastRunStatus=ok`） | 2026-03-07 |
+| 回归复验 | `scripts/tests/test_runtime_health_audit.sh`;`scripts/test_run_brain_trust_review_regression.sh` | 防止收口修复引入回归。 | 已完成（两项测试均通过） | 2026-03-07 |
+
