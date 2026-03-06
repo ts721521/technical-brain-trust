@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.4
+./scripts/build_release_branch.sh --version v1.6.5
 ```
 
 Pre-publish safety gate:

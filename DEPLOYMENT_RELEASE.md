@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.4
+# Brain Trust Deployment Release v1.6.5
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.4`
+- Release version: `v1.6.5`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.4
+./scripts/build_release_branch.sh --version v1.6.5
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -244,6 +244,8 @@ git push origin release --tags
 - `structured_summary.json` includes: `stage1_mode`, `model_routing_summary`, `parse_diagnostics`, `score_summary`, `orchestration.stage4_status`, `execution_summary`, `scheduling_summary`.
 - `acceptance_report.json` exists and contains `reviewer=braintrust_compliance` and `status(pass|blocked)`.
 - `quality_gate_report.json` exists and contains `final_quality_status=pass|blocked`.
+- `quality_improvement_log.jsonl` exists and latest row includes `experiment_result`.
+- `quality_baseline.yaml` exists with baseline targets.
 - `task_ledger.jsonl` has lifecycle evidence:
   - `published -> assigned -> in_progress -> review -> acceptance`
   - pass path reaches `done`

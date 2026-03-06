@@ -776,3 +776,12 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 日报新增初始化阻塞诊断 | `scripts/runtime_health_audit.sh` | 之前日报没有 `bootstrapPending` 维度，隐性阻塞不可见。 | 已完成（新增 `agent_bootstrap.pending_count/pending_agents`） | 2026-03-07 |
 | 新增回归测试覆盖 | `scripts/tests/test_bootstrap_agent_sessions.sh`;`scripts/tests/test_runtime_health_audit.sh` | 防止收敛补丁回归失效。 | 已完成（两项测试通过） | 2026-03-07 |
 | CI/发布契约同步 | `.github/workflows/brain_trust_verify.yml`;`release/release_manifest.txt`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`README.md`;`00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保证脚本、文档、验收命令一致，不出现“修了但不验”。 | 已完成（版本推进 `v1.6.4`） | 2026-03-07 |
+
+## 40. 下一阶段继续：Stage5 质量演进产物工程化留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| Stage5 输出新增 QEL 产物 | `scripts/run_brain_trust_review.sh` | 之前仅产出 `quality_gate_report.json`，`quality_improvement_log.jsonl/quality_baseline.yaml` 仍停留在设计层。 | 已完成（每次审查自动追加改进日志，并在缺失时生成基线文件） | 2026-03-07 |
+| 产物台账接入 QEL 文件 | `scripts/run_brain_trust_review.sh` | 保证新产物可审计、可检索。 | 已完成（`register_artifact_indexes` 已纳入两个新文件） | 2026-03-07 |
+| 回归测试增强 | `scripts/test_run_brain_trust_review_regression.sh` | 防止后续改动导致 Stage5 产物丢失。 | 已完成（正常/失败路径都断言 `quality_improvement_log.jsonl`，正常路径断言 `quality_baseline.yaml`） | 2026-03-07 |
+| 配置与发布契约同步 | `config/brain_trust_config.yaml`;`config/deployment_release.yaml`;`DEPLOYMENT_RELEASE.md`;`DEPLOYMENT_CHANGELOG.md`;`README.md`;`docs/*.md` | 保证文档、元数据、验收命令一致。 | 已完成（版本推进 `v1.6.5`） | 2026-03-07 |

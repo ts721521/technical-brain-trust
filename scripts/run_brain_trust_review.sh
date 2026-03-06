@@ -1614,6 +1614,106 @@ qp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding
 PY
 }
 
+write_quality_evolution_artifacts() {
+  local structured_file="$1"
+  local acceptance_file="$2"
+  local quality_file="$3"
+  local improvement_log_file="$4"
+  local baseline_file="$5"
+  local owner_team="$6"
+  python3 - "${structured_file}" "${acceptance_file}" "${quality_file}" "${improvement_log_file}" "${baseline_file}" "${owner_team}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+sp = Path(sys.argv[1])
+ap = Path(sys.argv[2])
+qp = Path(sys.argv[3])
+lp = Path(sys.argv[4])
+bp = Path(sys.argv[5])
+owner_team = str(sys.argv[6] or "team-brain-trust")
+
+def load_json(path: Path):
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+structured = load_json(sp)
+acceptance = load_json(ap)
+quality = load_json(qp)
+
+now = datetime.now(timezone.utc)
+period = now.strftime("%Y-%m")
+final_score = structured.get("final_score", 0)
+try:
+    final_score = float(final_score)
+except Exception:
+    final_score = 0.0
+
+score_summary = structured.get("score_summary", {})
+score_status = str(score_summary.get("status", "") or "")
+acceptance_status = str(acceptance.get("status", "") or "")
+stage4_status = ""
+if isinstance(structured.get("orchestration"), dict):
+    stage4_status = str(structured["orchestration"].get("stage4_status", "") or "")
+quality_status = str(quality.get("final_quality_status", "") or "")
+blocked_reasons = quality.get("blocked_reasons", [])
+if not isinstance(blocked_reasons, list):
+    blocked_reasons = []
+
+reopen_actions = acceptance.get("reopen_actions", [])
+if not isinstance(reopen_actions, list):
+    reopen_actions = []
+
+improvement_actions = []
+for item in reopen_actions:
+    text = str(item).strip()
+    if text:
+        improvement_actions.append(text)
+if not improvement_actions and quality_status == "blocked":
+    improvement_actions.append("补齐 Stage4 产物与验收证据后重跑审查。")
+
+issues_topn = [str(x).strip() for x in blocked_reasons if str(x).strip()][:3]
+
+entry = {
+    "period": period,
+    "team_id": owner_team,
+    "baseline_metrics": {
+        "final_score": round(final_score, 2),
+        "score_status": score_status,
+        "acceptance_status": acceptance_status,
+        "stage4_status": stage4_status,
+        "quality_status": quality_status,
+    },
+    "issues_topn": issues_topn,
+    "improvement_actions": improvement_actions,
+    "experiment_result": "pass" if quality_status == "pass" else "blocked",
+    "promoted_changes": [],
+    "rolled_back_changes": improvement_actions if quality_status == "blocked" else [],
+    "timestamp": now.isoformat(timespec="seconds"),
+}
+
+lp.parent.mkdir(parents=True, exist_ok=True)
+with lp.open("a", encoding="utf-8") as f:
+    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+if not bp.exists():
+    bp.parent.mkdir(parents=True, exist_ok=True)
+    baseline = [
+        "delivery_pass_rate_target: 0.95",
+        "rework_rate_target: 0.15",
+        "rollback_rate_ceiling: 0.05",
+        "degraded_rate_ceiling: 0.10",
+        "p95_cycle_time_target: \"30m\"",
+    ]
+    bp.write_text("\n".join(baseline) + "\n", encoding="utf-8")
+PY
+}
+
 task_ledger_exec() {
   local cmd="$1"
   shift || true
@@ -1696,6 +1796,8 @@ register_artifact_indexes() {
     "${out_dir}/editor_review.md"
     "${out_dir}/acceptance_report.json"
     "${out_dir}/quality_gate_report.json"
+    "${out_dir}/quality_improvement_log.jsonl"
+    "${out_dir}/quality_baseline.yaml"
     "${out_dir}/pangu_execution_report.md"
   )
   local f
@@ -2542,6 +2644,13 @@ append_stage4_routing_trace "${stage4_status}" "${stage4_failure_reason}" "${sch
 write_acceptance_report "${structured_file}" "${out_dir}/acceptance_report.json"
 task_ledger_mark_acceptance "${out_dir}/acceptance_report.json"
 write_quality_gate_report "${structured_file}" "${out_dir}/acceptance_report.json" "${out_dir}/quality_gate_report.json"
+write_quality_evolution_artifacts \
+  "${structured_file}" \
+  "${out_dir}/acceptance_report.json" \
+  "${out_dir}/quality_gate_report.json" \
+  "${out_dir}/quality_improvement_log.jsonl" \
+  "${out_dir}/quality_baseline.yaml" \
+  "${team_id}"
 register_artifact_indexes "review"
 
 echo "Review finished: ${out_dir}"

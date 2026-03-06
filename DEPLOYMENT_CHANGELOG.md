@@ -1,5 +1,33 @@
 # Deployment Changelog
 
+## v1.6.5 (2026-03-07)
+
+### Changes
+- Implemented Stage5 quality evolution artifact generation in `run_brain_trust_review.sh`:
+  - `quality_improvement_log.jsonl` (append one row per run)
+  - `quality_baseline.yaml` (auto-create when missing)
+- Integrated quality evolution artifacts into review artifact index registration.
+- Expanded runtime audit config team coverage in `config/brain_trust_config.yaml`:
+  - `team-smart3d`
+  - `team-proposal`
+- Added regression assertions for quality evolution artifacts in:
+  - `scripts/test_run_brain_trust_review_regression.sh`
+
+### Compatibility Impact
+- Backward compatible with previous outputs.
+- Adds two new Stage5 output files for each review run.
+
+### Migration Actions
+- Run one quick local review:
+  - `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m) --local`
+- Verify new files:
+  - `quality_improvement_log.jsonl`
+  - `quality_baseline.yaml`
+
+### Verification Evidence
+- `scripts/test_run_brain_trust_review_regression.sh`
+- `scripts/check_release_docs_consistency.sh`
+
 ## v1.6.4 (2026-03-07)
 
 ### Changes

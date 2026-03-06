@@ -357,9 +357,21 @@ assert_json "${out_normal}/structured_summary.json" "all('spark' not in item['mo
 [[ -f "${out_normal}/pangu_execution_raw.json" ]]
 [[ -f "${out_normal}/acceptance_report.json" ]]
 [[ -f "${out_normal}/quality_gate_report.json" ]]
+[[ -f "${out_normal}/quality_improvement_log.jsonl" ]]
+[[ -f "${out_normal}/quality_baseline.yaml" ]]
 assert_json "${out_normal}/acceptance_report.json" "data['reviewer'] == 'braintrust_compliance'"
 assert_json "${out_normal}/acceptance_report.json" "data['status'] == 'pass'"
 assert_json "${out_normal}/quality_gate_report.json" "data['final_quality_status'] == 'pass'"
+python3 - "${out_normal}/quality_improvement_log.jsonl" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+lines = [x.strip() for x in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if x.strip()]
+assert lines, "quality_improvement_log.jsonl is empty"
+row = json.loads(lines[-1])
+assert row["experiment_result"] == "pass"
+PY
 
 out_degraded="${tmp_dir}/out_degraded"
 run_case "degraded_fail_innovator" "${short_proposal}" "${out_degraded}"
@@ -399,7 +411,18 @@ assert_json "${out_pangu_fail}/structured_summary.json" "data['execution_status'
 [[ -f "${out_pangu_fail}/pangu_execution_raw.json.stderr" ]]
 [[ -f "${out_pangu_fail}/acceptance_report.json" ]]
 [[ -f "${out_pangu_fail}/quality_gate_report.json" ]]
+[[ -f "${out_pangu_fail}/quality_improvement_log.jsonl" ]]
 assert_json "${out_pangu_fail}/acceptance_report.json" "data['status'] == 'blocked'"
 assert_json "${out_pangu_fail}/quality_gate_report.json" "data['final_quality_status'] == 'blocked'"
+python3 - "${out_pangu_fail}/quality_improvement_log.jsonl" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+lines = [x.strip() for x in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines() if x.strip()]
+assert lines, "quality_improvement_log.jsonl is empty"
+row = json.loads(lines[-1])
+assert row["experiment_result"] == "blocked"
+PY
 
 echo "All regression checks passed."

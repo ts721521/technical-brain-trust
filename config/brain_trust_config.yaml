@@ -86,6 +86,8 @@ runtime:
       - "team-brain-trust"
       - "team-knowledge"
       - "team-rd"
+      - "team-smart3d"
+      - "team-proposal"
     outputs:
       - "runtime_health_report-YYYYMMDD-050000.json"
       - "agent_model_inventory-YYYYMMDD-050000.md"
@@ -130,6 +132,8 @@ output:
     - "structured_summary.json"          # 结构化摘要（机读）
     - "acceptance_report.json"           # 验收结果（braintrust_compliance）
     - "quality_gate_report.json"         # 质量门禁结果（QSGP）
+    - "quality_improvement_log.jsonl"    # 质量持续改进日志（QEL）
+    - "quality_baseline.yaml"            # 质量基线（QEL）
 
 # 开源方案推荐标准
 opensource_recommendation:

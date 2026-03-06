@@ -1,4 +1,4 @@
-release_version: "v1.6.4"
+release_version: "v1.6.5"
 openclaw_compatibility: "2026.3.2"
 openai_policy:
   type: "fixed"
@@ -134,7 +134,7 @@ acceptance_checks:
   - "bash -n scripts/tests/test_bootstrap_agent_sessions.sh"
   - "bash -n scripts/tests/test_mvp_team_closure.sh"
   - "scripts/verify_main_delegate_reliability.sh"
-  - "scripts/build_release_branch.sh --version v1.6.4 --dry-run --allow-dirty"
+  - "scripts/build_release_branch.sh --version v1.6.5 --dry-run --allow-dirty"
   - "scripts/check_release_docs_consistency.sh"
   - "scripts/validate_docs_path_policy.sh --docs-root /Volumes/TB512/3_ClawDocs --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603"
   - "scripts/register_artifact_index.sh --docs-root /Volumes/TB512/3_ClawDocs --team team-brain-trust --artifact evidence --topic sample --path /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/summary_report.md --producer-script run_brain_trust_review.sh --status generated"
@@ -164,7 +164,7 @@ acceptance_checks:
   - "scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603 --local"
   - "test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/ops/$(date +%Y%m)/runtime_health_report-$(date +%Y%m%d)-050000.json"
   - "rg -n \"stage4_status|execution_summary|acceptance_report\" /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/structured_summary.json /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/acceptance_report.json"
-  - "test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_plan.md && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_report.md && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_raw.json && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/acceptance_report.json"
+  - "test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_plan.md && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_report.md && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/pangu_execution_raw.json && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/acceptance_report.json && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/quality_gate_report.json && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/quality_improvement_log.jsonl && test -f /Volumes/TB512/3_ClawDocs/team-brain-trust/review/202603/quality_baseline.yaml"
 notes:
   - "Stage1 runs serially due to OpenClaw global default model config semantics."
   - "Four-provider coverage is required in each role chain: OpenAI, Google, ZAI, Bailian."
