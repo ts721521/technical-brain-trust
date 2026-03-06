@@ -747,3 +747,12 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 部署文档同步下一阶段入口 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md`;`DEPLOYMENT_CHANGELOG.md` | 让人类与AI都能按统一入口执行下一阶段。 | 已完成（新增阶段三MVP闭环命令与验收点） | 2026-03-07 |
 | 版本推进 | `config/deployment_release.yaml` | 与本轮发布内容一致化。 | 已完成（`release_version` 更新为 `v1.6.1`） | 2026-03-07 |
 
+
+## 37. 下一阶段继续：Smart3D 团队MVP扩容闭环留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| 扩展MVP闭环 owner 映射 | `scripts/run_mvp_team_closure.sh` | 让脚本可覆盖更多团队，避免 `team-smart3d` 误用 `rd_lead`。 | 已完成（新增映射：`team-smart3d -> smart3d_lead`，并支持 proposal/default） | 2026-03-07 |
+| 强化MVP测试覆盖 Smart3D | `scripts/tests/test_mvp_team_closure.sh` | 防止团队扩容时 owner/闭环证据回归失效。 | 已完成（新增 `team-smart3d` 测试与 owner 断言） | 2026-03-07 |
+| 部署文档新增 Smart3D 扩容入口 | `00_DEPLOY_BRAIN_TRUST.md`;`DEPLOYMENT_RELEASE.md`;`README.md` | 明确“阶段三后继续扩容”可执行命令，减少人工判断。 | 已完成（新增 `team-smart3d` 闭环命令与验证点） | 2026-03-07 |
+| 发布元数据与版本推进 | `config/deployment_release.yaml`;`DEPLOYMENT_CHANGELOG.md`;`docs/*.md` | 保持发布文档、元数据、校验脚本一致。 | 已完成（版本升级到 `v1.6.2`，新增 Smart3D 验收命令） | 2026-03-07 |

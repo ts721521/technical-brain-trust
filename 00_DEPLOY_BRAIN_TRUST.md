@@ -236,6 +236,21 @@ crontab -l | rg BT_RUNTIME_AUDIT -n
 - 各自产生 `acceptance_report-*.json`
 - 汇总报告产出到 `team-brain-trust/ops/<yyyymm>/mvp_team_closure_report-*.json`
 
+## 阶段四扩容闭环（Smart3D 团队）
+
+```bash
+# 生成 Smart3D 团队闭环证据（发布->执行->审核->验收->done）
+./scripts/run_mvp_team_closure.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --teams team-smart3d \
+  --tasks-per-team 3
+```
+
+验证点：
+- `team-smart3d` 产生 `task_ledger.jsonl`
+- 产生 `acceptance_report-*.json`
+- 汇总报告包含 `team-smart3d` 且 owner 为 `smart3d_lead`
+
 ## 第零步：加载环境变量并校验
 
 ```bash

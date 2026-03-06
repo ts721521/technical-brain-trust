@@ -51,7 +51,7 @@ This repository uses a split model:
 Build/update `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.1
+./scripts/build_release_branch.sh --version v1.6.2
 ```
 
 Pre-publish safety gate:
@@ -97,6 +97,15 @@ MVP closure smoke (knowledge + rd teams):
 ./scripts/run_mvp_team_closure.sh \
   --docs-root /Volumes/TB512/3_ClawDocs \
   --teams team-knowledge,team-rd \
+  --tasks-per-team 3
+```
+
+下一阶段扩容（Smart3D 团队）：
+
+```bash
+./scripts/run_mvp_team_closure.sh \
+  --docs-root /Volumes/TB512/3_ClawDocs \
+  --teams team-smart3d \
   --tasks-per-team 3
 ```
 

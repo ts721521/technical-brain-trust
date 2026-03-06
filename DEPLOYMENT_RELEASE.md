@@ -1,4 +1,4 @@
-# Brain Trust Deployment Release v1.6.1
+# Brain Trust Deployment Release v1.6.2
 
 ## Scope
 
@@ -6,7 +6,7 @@ This document is the canonical, release-grade deployment entry for replicating t
 
 ## Release Baseline
 
-- Release version: `v1.6.1`
+- Release version: `v1.6.2`
 - OpenClaw compatibility: `2026.3.2`
 - OpenAI policy: only `openai-codex/gpt-5.3-codex`
 - Stage1 execution mode: serial (to avoid global model override races in OpenClaw)
@@ -165,7 +165,7 @@ Use branch split to avoid contamination:
 Build and verify `release` from `main`:
 
 ```bash
-./scripts/build_release_branch.sh --version v1.6.1
+./scripts/build_release_branch.sh --version v1.6.2
 git switch release
 ./scripts/verify_public_release.sh --root . --manifest release/release_manifest.txt --enforce-manifest
 ./scripts/check_release_docs_consistency.sh
@@ -231,6 +231,7 @@ git push origin release --tags
 - `scripts/tests/test_mvp_team_closure.sh`
 - `scripts/runtime_health_audit.sh --slot-time 050000 --notify false`
 - `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-knowledge,team-rd --tasks-per-team 1 --yyyymm $(date +%Y%m)`
+- `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-smart3d --tasks-per-team 1 --yyyymm $(date +%Y%m)`
 
 4. E2E smoke
 - `scripts/run_brain_trust_review.sh --proposal 02_Proposal_Submission_Template.md --depth quick --out /Volumes/TB512/3_ClawDocs/team-brain-trust/review/$(date +%Y%m) --local`
@@ -243,7 +244,7 @@ git push origin release --tags
   - `published -> assigned -> in_progress -> review -> acceptance`
   - pass path reaches `done`
   - blocked path reopens to `in_progress` with `reopen_actions`
-- MVP teams (`team-knowledge`, `team-rd`) each produce closure evidence:
+- MVP teams (`team-knowledge`, `team-rd`, `team-smart3d`) each produce closure evidence:
   - per-team ledger exists under `/Volumes/TB512/3_ClawDocs/<team>/ops/<yyyymm>/task_ledger.jsonl`
   - acceptance evidence files exist under `/Volumes/TB512/3_ClawDocs/<team>/evidence/<yyyymm>/`
 - Daily runtime audit artifacts exist under `/Volumes/TB512/3_ClawDocs/team-brain-trust/ops/<yyyymm>/`:

@@ -1,5 +1,31 @@
 # Deployment Changelog
 
+## v1.6.2 (2026-03-07)
+
+### Changes
+- Extended MVP closure runner to support multi-team owner mapping:
+  - `team-knowledge -> scholar`
+  - `team-rd -> rd_lead`
+  - `team-smart3d -> smart3d_lead`
+  - `team-proposal -> proposal_lead`
+- Updated `scripts/tests/test_mvp_team_closure.sh` to validate Smart3D closure and owner mapping.
+- Added Stage4 expansion docs for Smart3D team closure in deployment/README guides.
+- Updated release metadata and consistency docs to `v1.6.2`.
+
+### Compatibility Impact
+- Backward compatible with existing `run_mvp_team_closure.sh` usage.
+- Adds new recommended expansion scenario for `team-smart3d`.
+
+### Migration Actions
+- Run:
+  - `scripts/run_mvp_team_closure.sh --docs-root /Volumes/TB512/3_ClawDocs --teams team-smart3d --tasks-per-team 3`
+- Verify summary contains `team-smart3d` and `owner=smart3d_lead`.
+
+### Verification Evidence
+- `bash -n scripts/run_mvp_team_closure.sh`
+- `bash -n scripts/tests/test_mvp_team_closure.sh`
+- `scripts/tests/test_mvp_team_closure.sh`
+
 ## v1.6.1 (2026-03-07)
 
 ### Changes

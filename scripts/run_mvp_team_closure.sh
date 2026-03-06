@@ -67,15 +67,33 @@ fi
 
 declare -a summary_rows=()
 
+owner_for_team() {
+  local team_id="$1"
+  case "${team_id}" in
+    team-knowledge)
+      echo "scholar"
+      ;;
+    team-rd|team-rd-*)
+      echo "rd_lead"
+      ;;
+    team-smart3d|team-smart3d-*)
+      echo "smart3d_lead"
+      ;;
+    team-proposal|team-proposal-*)
+      echo "proposal_lead"
+      ;;
+    *)
+      echo "pangu"
+      ;;
+  esac
+}
+
 IFS=',' read -r -a teams <<< "${TEAMS_CSV}"
 for team in "${teams[@]}"; do
   team="$(echo "${team}" | xargs)"
   [[ -n "${team}" ]] || continue
 
-  owner="rd_lead"
-  if [[ "${team}" == "team-knowledge" ]]; then
-    owner="scholar"
-  fi
+  owner="$(owner_for_team "${team}")"
 
   ledger_dir="${DOCS_ROOT}/${team}/ops/${YYYYMM}"
   evidence_dir="${DOCS_ROOT}/${team}/evidence/${YYYYMM}"
@@ -167,7 +185,7 @@ for row in rows:
 payload = {
     "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     "run_id": ts,
-    "scope": "phase1_mvp_knowledge_rd",
+    "scope": "mvp_team_closure",
     "teams": teams,
     "requested_teams": [x.strip() for x in teams_csv.split(",") if x.strip()],
     "tasks_per_team": tasks_per_team,
