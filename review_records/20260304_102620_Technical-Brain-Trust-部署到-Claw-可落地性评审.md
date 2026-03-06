@@ -726,3 +726,13 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 收敛 scholar idle cron 超时 | OpenClaw cron job `a91a1133-afb5-4376-8465-0ac0593fa8f3` | Idle 学习任务过重导致连续 timeout。 | 已完成（改轻量离线课题+90秒超时+flash模型；最近状态 `lastRunStatus=ok`） | 2026-03-07 |
 | 回归复验 | `scripts/tests/test_runtime_health_audit.sh`;`scripts/test_run_brain_trust_review_regression.sh` | 防止收口修复引入回归。 | 已完成（两项测试均通过） | 2026-03-07 |
 
+
+## 35. 阶段二残留项最终清零留痕（2026-03-07）
+
+| 变更项 | 文件/对象 | 原因 | 验证结果 | 时间 |
+| --- | --- | --- | --- | --- |
+| security warn 清零 | OpenClaw runtime (`gateway.trustedProxies` + gateway reinstall/restart) | `trusted_proxies_missing` 持续告警影响安全基线验收。 | 已完成（`openclaw security audit` 结果：critical=0, warn=0） | 2026-03-07 |
+| 监控与学习 cron 超时收敛 | OpenClaw cron jobs `b8735...`,`a91a...` | 监控与 idle 学习任务提示词过重，手动触发易 timeout。 | 已完成（两任务最近状态均 `lastRunStatus=ok`） | 2026-03-07 |
+| 审计 backlog 噪声清理 | `scripts/runtime_health_audit.sh` | 历史失败与无投递模式误判导致日报长期虚高。 | 已完成（`delivery_issues=[]`；`failed_recent=0`；`improvement_backlog.p0/p1` 均为空） | 2026-03-07 |
+| 阶段二回归复验 | `scripts/tests/test_runtime_health_audit.sh`;`scripts/test_run_brain_trust_review_regression.sh` | 确认收口修复未引入回归。 | 已完成（两项测试均通过） | 2026-03-07 |
+

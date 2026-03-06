@@ -426,8 +426,6 @@ if cron_delivery_issues:
     p1_items.append(f"定时任务投递异常 {len(cron_delivery_issues)} 项。")
 if queue_pending > 0 or queue_running > 0:
     p1_items.append(f"队列积压状态：pending={queue_pending}, running={queue_running}")
-if queue_failed_total > 0 and queue_failed_recent == 0:
-    p1_items.append(f"存在历史失败任务 {queue_failed_total} 条（近{queue_failure_window_hours}小时无新增）。")
 if warn > 0:
     p1_items.append(f"security warn={warn}，建议后续收敛。")
 
