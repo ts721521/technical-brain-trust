@@ -12,7 +12,7 @@
 - Added lifecycle tests:
   - `scripts/tests/test_task_ledger.sh`
   - `scripts/tests/test_acceptance_gate.sh`
-- Added interface binding fail-fast checker `scripts/check_interface_bindings.sh` (for list-only CLI binding environments).
+- Added channel-binding visibility checker `scripts/check_interface_bindings.sh` (default warn, `--strict` to block).
 - Integrated task lifecycle writeback into `run_brain_trust_review.sh`:
   - Stage1 bootstrap: `published -> assigned -> in_progress`
   - Stage3 completion: `review`

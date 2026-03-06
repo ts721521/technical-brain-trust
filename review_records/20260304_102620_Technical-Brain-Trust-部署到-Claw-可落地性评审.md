@@ -697,6 +697,6 @@ Claw（主 Agent）是一个**高自由度的自治体**，具备自我进化和
 | 主流程接入台账自动回写 | scripts/run_brain_trust_review.sh | 让 Stage1/3/5 自动写生命周期，不再依赖人工登记。 | 已完成（自动回写 `published/assigned/in_progress/review/acceptance/done`） | 2026-03-06 |
 | 验收阻断自动回流落地 | scripts/run_brain_trust_review.sh | 解决“验收 blocked 但任务状态仍显示完成”的假完成问题。 | 已完成（`acceptance_report.status=blocked` 时强制回写 `in_progress` + `reopen_actions`） | 2026-03-06 |
 | 新增验收回写联动测试 | scripts/tests/test_acceptance_gate.sh | 验证 pass/blocked 两条路径的台账状态联动正确。 | 已完成（测试输出 `acceptance gate tests passed`） | 2026-03-06 |
-| 新增接口绑定强校验脚本 | scripts/check_interface_bindings.sh | 解决 `openclaw agents bindings` 仅支持 list 时“有路由规则但无可达绑定”的隐性风险。 | 已完成（可在部署阶段 fail-fast 并给出修复指引） | 2026-03-06 |
+| 新增渠道绑定可见性校验脚本 | scripts/check_interface_bindings.sh | 明确 `openclaw agents bindings` 为渠道绑定视图，补齐默认告警与严格阻断（`--strict`）两种验收模式。 | 已完成（默认告警不阻断，严格模式可强制失败） | 2026-03-06 |
 | 部署与发布契约同步 | 01_Review_Workflow.md;00_DEPLOY_BRAIN_TRUST.md;DEPLOYMENT_RELEASE.md;config/deployment_release.yaml;release/release_manifest.txt | 将台账脚本与验收测试纳入标准发布与验收链，避免文档-实现脱节。 | 已完成（新增命令与契约检查项） | 2026-03-06 |
 | 全量回归复验 | scripts/test_run_brain_trust_review_regression.sh | 确认新增台账回写不破坏既有 Stage1-5 与评分/路由逻辑。 | 已完成（输出 `All regression checks passed.`） | 2026-03-06 |

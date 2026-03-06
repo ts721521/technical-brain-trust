@@ -105,8 +105,10 @@ openclaw approvals get --json
 # 2) 可选：真实联调模式（依赖模型/会话状态）
 ./scripts/verify_main_delegate_reliability.sh --mode live --timeout 120
 
-# 3) 接口绑定强校验（CLI 只读模式下的 fail-fast）
+# 3) 渠道绑定可见性检查（默认告警；严格模式可阻断）
 ./scripts/check_interface_bindings.sh
+# 若要求“必须存在显式绑定”：
+./scripts/check_interface_bindings.sh --strict
 ```
 
 闭环语义：
