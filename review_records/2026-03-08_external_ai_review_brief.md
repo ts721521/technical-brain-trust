@@ -39,11 +39,17 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 评审要求：
 - 先读取 `00_REVIEW_START_HERE.md`
 - 再读取 `docs/tests/review_status.yaml`
+- 再读取 `docs/tests/review_submission_protocol.md`
 - 先从 `review_branch` 读取入口文件，再以指定 `review_commit` 作为最终评审快照
 - 不基于 `main` 或其他漂移状态评审
 - 只在白名单路径内写入
 - 每条评审意见尽量附证据锚点
 - 若 `phase=CLOSED`，请停止修改并切换为只读
+
+提交要求：
+- 评审完成后，请使用你自己的 reviewer branch 提交
+- 通过 PR 合并到 `codex/system-design-review-20260308`
+- 不要直接 push 到 `codex/system-design-review-20260308`
 
 请以公平、严格、可举证的方式评审当前系统设计，而不是做泛泛点评。
 ```
@@ -56,6 +62,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 - Review Branch: `codex/system-design-review-20260308`
 - Review Commit: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - Entry File: [00_REVIEW_START_HERE.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/00_REVIEW_START_HERE.md)
+- Submission Protocol: [review_submission_protocol.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/docs/tests/review_submission_protocol.md)
 
 ---
 

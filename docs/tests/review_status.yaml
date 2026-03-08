@@ -7,6 +7,7 @@ summary_owner: codex
 result_mode: repo_files
 entry_file: 00_REVIEW_START_HERE.md
 summary_file: review_records/system_design_review_summary.md
+submission_protocol_file: docs/tests/review_submission_protocol.md
 allowed_write_paths:
   - docs/tests/theory_change_reviews/
   - docs/tests/theory_change_review_index.md

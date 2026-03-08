@@ -62,6 +62,7 @@
 1. [docs/tests/review_status.yaml](./docs/tests/review_status.yaml)
 2. [docs/tests/theory_change_review_index.md](./docs/tests/theory_change_review_index.md)
 3. [docs/tests/peer_review_matrix.md](./docs/tests/peer_review_matrix.md)
+4. [docs/tests/review_submission_protocol.md](./docs/tests/review_submission_protocol.md)
 
 `docs/tests/review_status.yaml` 是唯一阶段锁：
 
@@ -98,7 +99,8 @@
 3. [docs/tests/review_status.yaml](./docs/tests/review_status.yaml)
 4. [docs/tests/theory_change_review_index.md](./docs/tests/theory_change_review_index.md)
 5. [docs/tests/peer_review_matrix.md](./docs/tests/peer_review_matrix.md)
-6. [review_records/system_design_review_summary.md](./review_records/system_design_review_summary.md)
+6. [docs/tests/review_submission_protocol.md](./docs/tests/review_submission_protocol.md)
+7. [review_records/system_design_review_summary.md](./review_records/system_design_review_summary.md)
 
 ---
 
@@ -130,6 +132,25 @@
    - 角色文件
    - 或 `review_commit` 下的可核对事实
 4. 不接受纯态度型评论，例如“同意”“感觉不错”“值得考虑”。
+
+---
+
+## 提交与收口
+
+评审不是“写完就结束”。
+
+评审完成后的 GitHub 动作、冻结和关闭规则，统一见：
+
+- [docs/tests/review_submission_protocol.md](./docs/tests/review_submission_protocol.md)
+
+默认规则是：
+
+- 每个 reviewer 使用自己的提交分支
+- 通过 PR 提交到 `review_branch`
+- 不直接 push 到 `codex/system-design-review-20260308`
+- 人类合并 reviewer PR
+- 收集完成后切到 `FROZEN`
+- 汇总完成后切到 `CLOSED`
 
 ---
 
