@@ -31,7 +31,7 @@
 
 请基于以下固定评审对象进行评审：
 - review_branch: `codex/system-design-review-20260308`
-- review_commit: `990046da48c97df184d835d89d4ba05577ffd37d`
+- review_commit: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 
 唯一入口：
 https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/00_REVIEW_START_HERE.md
@@ -39,7 +39,8 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 评审要求：
 - 先读取 `00_REVIEW_START_HERE.md`
 - 再读取 `docs/tests/review_status.yaml`
-- 只基于指定 branch/commit 评审，不基于 `main` 或其他漂移状态
+- 先从 `review_branch` 读取入口文件，再以指定 `review_commit` 作为最终评审快照
+- 不基于 `main` 或其他漂移状态评审
 - 只在白名单路径内写入
 - 每条评审意见尽量附证据锚点
 - 若 `phase=CLOSED`，请停止修改并切换为只读
@@ -53,7 +54,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 
 - Repository: [technical-brain-trust](https://github.com/ts721521/technical-brain-trust)
 - Review Branch: `codex/system-design-review-20260308`
-- Review Commit: `990046da48c97df184d835d89d4ba05577ffd37d`
+- Review Commit: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - Entry File: [00_REVIEW_START_HERE.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/00_REVIEW_START_HERE.md)
 
 ---

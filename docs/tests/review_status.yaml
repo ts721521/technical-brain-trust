@@ -1,7 +1,7 @@
 phase: OPEN
 review_topic: system_design_review
 review_branch: codex/system-design-review-20260308
-review_commit: 990046da48c97df184d835d89d4ba05577ffd37d
+review_commit: d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0
 review_owner: human
 summary_owner: codex
 result_mode: repo_files

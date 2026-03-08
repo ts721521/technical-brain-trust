@@ -78,13 +78,15 @@
 本轮评审对象固定为：
 
 - `review_branch`: `codex/system-design-review-20260308`
-- `review_commit`: `990046da48c97df184d835d89d4ba05577ffd37d`
+- `review_commit`: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - `review_topic`: `system_design_review`
 - `review_owner`: `human`
 
 禁止基于本地脏工作区、未声明分支、或 `main` 漂移状态给评审结论。
 
-如果你通过 GitHub 进入，请以 `review_branch/review_commit` 为唯一评审对象。  
+`review_branch` 承载评审流程文件；`review_commit` 是被评审系统快照。  
+
+如果你通过 GitHub 进入，请先从 `review_branch` 读取入口文件，再以 `review_commit` 为最终评审对象。  
 如果你通过本地仓库进入，也必须以 `review_status.yaml` 中记录的 branch/commit 为准。
 
 ---

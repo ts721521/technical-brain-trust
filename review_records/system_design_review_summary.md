@@ -2,7 +2,7 @@
 
 **Review Topic**: `system_design_review`  
 **Canonical Review Branch**: `codex/system-design-review-20260308`  
-**Canonical Review Commit**: `990046da48c97df184d835d89d4ba05577ffd37d`  
+**Canonical Review Commit**: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`  
 **Review Owner**: `human`  
 **Summary Owner**: `codex`
 
