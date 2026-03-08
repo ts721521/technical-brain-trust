@@ -3,13 +3,27 @@ review_topic: system_design_review
 review_branch: codex/system-design-review-20260308
 review_commit: d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0
 review_owner: human
+primary_console: cursor
+merge_operator: codex
 summary_owner: codex
+tracking_operator: codex
+braintrust_final_review_surface: claw_braintrust_role
+github_execution_identity: service_account
+peer_review_completion_mode: all_active_reviewers
 result_mode: repo_files
 entry_file: 00_REVIEW_START_HERE.md
+cursor_orchestrator_file: docs/tests/cursor_orchestrator_start_here.md
+cursor_reviewer_file: docs/tests/cursor_reviewer_start_here.md
+codex_maintainer_file: docs/tests/codex_maintainer_start_here.md
+claw_final_review_file: docs/tests/claw_final_review_start_here.md
 summary_file: review_records/system_design_review_summary.md
 submission_protocol_file: docs/tests/review_submission_protocol.md
 tracking_register_file: review_records/system_theory_change_tracking_register.md
 braintrust_review_status: pending
+reviewer_submission_labels:
+  - ai-review-submission
+  - ready-for-maintainer
+maintainer_block_label: merge-blocked
 allowed_write_paths:
   - docs/tests/theory_change_reviews/
   - docs/tests/theory_change_review_index.md

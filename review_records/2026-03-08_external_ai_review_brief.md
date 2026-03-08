@@ -40,6 +40,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 - 先读取 `00_REVIEW_START_HERE.md`
 - 再读取 `docs/tests/review_status.yaml`
 - 再读取 `docs/tests/review_submission_protocol.md`
+- 再读取 `docs/tests/cursor_reviewer_start_here.md`
 - 先从 `review_branch` 读取入口文件，再以指定 `review_commit` 作为最终评审快照
 - 不基于 `main` 或其他漂移状态评审
 - 只在白名单路径内写入
@@ -49,6 +50,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 提交要求：
 - 评审完成后，请使用你自己的 reviewer branch 提交
 - 通过 PR 合并到 `codex/system-design-review-20260308`
+- PR 需要带 `ai-review-submission` 和 `ready-for-maintainer`
 - 不要直接 push 到 `codex/system-design-review-20260308`
 - peer review 结束后，结论还会进入 braintrust 终审
 - 只有被 braintrust 批准的建议，才会进入正式变更追踪表
@@ -64,6 +66,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 - Review Branch: `codex/system-design-review-20260308`
 - Review Commit: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - Entry File: [00_REVIEW_START_HERE.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/00_REVIEW_START_HERE.md)
+- Reviewer Start: [cursor_reviewer_start_here.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/docs/tests/cursor_reviewer_start_here.md)
 - Submission Protocol: [review_submission_protocol.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/docs/tests/review_submission_protocol.md)
 - Tracking Register: [system_theory_change_tracking_register.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/review_records/system_theory_change_tracking_register.md)
 

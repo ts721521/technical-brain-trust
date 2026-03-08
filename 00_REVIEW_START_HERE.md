@@ -63,6 +63,7 @@
 2. [docs/tests/theory_change_review_index.md](./docs/tests/theory_change_review_index.md)
 3. [docs/tests/peer_review_matrix.md](./docs/tests/peer_review_matrix.md)
 4. [docs/tests/review_submission_protocol.md](./docs/tests/review_submission_protocol.md)
+5. 如果你是岗位执行 AI，再读对应岗位入口文件
 
 `docs/tests/review_status.yaml` 是唯一阶段锁：
 
@@ -72,6 +73,8 @@
 
 附加状态字段：
 
+- `primary_console`：当前主运营入口
+- `merge_operator`：负责 reviewer PR 合并的专职维护位
 - `braintrust_review_status`：标识智囊团终审是否完成
 - `post_freeze_write_paths`：标识 `FROZEN` 后只允许 `summary_owner` / 人类继续维护的文件
 
@@ -87,6 +90,9 @@
 - `review_commit`: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - `review_topic`: `system_design_review`
 - `review_owner`: `human`
+- `primary_console`: `cursor`
+- `merge_operator`: `codex`
+- `braintrust_final_review_surface`: `claw_braintrust_role`
 
 禁止基于本地脏工作区、未声明分支、或 `main` 漂移状态给评审结论。
 
@@ -105,7 +111,11 @@
 4. [docs/tests/theory_change_review_index.md](./docs/tests/theory_change_review_index.md)
 5. [docs/tests/peer_review_matrix.md](./docs/tests/peer_review_matrix.md)
 6. [docs/tests/review_submission_protocol.md](./docs/tests/review_submission_protocol.md)
-7. [review_records/system_design_review_summary.md](./review_records/system_design_review_summary.md)
+7. [docs/tests/cursor_orchestrator_start_here.md](./docs/tests/cursor_orchestrator_start_here.md)
+8. [docs/tests/cursor_reviewer_start_here.md](./docs/tests/cursor_reviewer_start_here.md)
+9. [docs/tests/codex_maintainer_start_here.md](./docs/tests/codex_maintainer_start_here.md)
+10. [docs/tests/claw_final_review_start_here.md](./docs/tests/claw_final_review_start_here.md)
+11. [review_records/system_design_review_summary.md](./review_records/system_design_review_summary.md)
 
 ---
 
@@ -153,9 +163,9 @@
 - 每个 reviewer 使用自己的提交分支
 - 通过 PR 提交到 `review_branch`
 - 不直接 push 到 `codex/system-design-review-20260308`
-- 人类合并 reviewer PR
+- `Codex` 作为 `merge_operator` 合并 reviewer PR
 - 收集完成后切到 `FROZEN`
-- `FROZEN` 后提交给 braintrust 做终审
+- `FROZEN` 后由人类手动触发 `Claw` 正式终审角色
 - 只有 braintrust 认可的项，才进入正式修改追踪表
 - 汇总完成后切到 `CLOSED`
 

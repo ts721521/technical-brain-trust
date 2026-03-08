@@ -19,13 +19,22 @@ It exists to prevent three failure modes:
 - `review_branch`: `codex/system-design-review-20260308`
 - `review_commit`: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - `review_owner`: `human`
+- `primary_console`: `cursor`
+- `merge_operator`: `codex`
 - `summary_owner`: `codex`
+- `tracking_operator`: `codex`
+- `braintrust_final_review_surface`: `claw_braintrust_role`
+- `github_execution_identity`: `service_account`
 
 Role meanings:
 
-- `review_owner` decides when review opens, freezes, closes, and what gets merged
+- `review_owner` decides when review opens, freezes, closes, and keeps final authority
+- `primary_console` is where the human operator manually switches reviewer models
+- `merge_operator` reviews and merges reviewer PRs while `phase=OPEN`
 - each reviewer submits only their own review changes
 - `summary_owner` maintains the final rollup after review collection is frozen
+- `tracking_operator` updates the formal tracking register after final approval
+- `braintrust_final_review_surface` is the only official final-review entrypoint after `FROZEN`
 
 ---
 
@@ -52,6 +61,9 @@ Reviewers must not modify:
 
 Each reviewer should use a dedicated submission branch derived from `review_branch`.
 
+In V1, the human operator runs reviewers from `Cursor` and may manually switch models.
+Model switching is not part of the formal protocol; reviewer behavior is controlled by the shared reviewer prompt and reviewer start file.
+
 Recommended branch naming:
 
 - `codex/review-<reviewer>-20260308`
@@ -70,6 +82,13 @@ Required steps:
 4. Commit with a reviewer-specific message
 5. Push the reviewer branch to GitHub
 6. Open a PR targeting `codex/system-design-review-20260308`
+7. Add labels:
+   - `ai-review-submission`
+   - `ready-for-maintainer`
+
+Use the PR description structure from:
+
+- `docs/tests/reviewer_pr_template.md`
 
 Reviewers should not push directly to `codex/system-design-review-20260308`.
 
@@ -125,18 +144,36 @@ Recommended commit message:
 
 - `review: <reviewer> submit system design assessment`
 
+PR description should include:
+
+- `Logical Reviewer`
+- `Operator Surface`
+- `Review Commit`
+- `Changed Whitelist Paths`
+
 ---
 
-## Human Merge Flow
+## Codex Maintainer Merge Flow
 
-The human owner or designated maintainer should:
+`Codex` as `merge_operator` should:
 
 1. Review each reviewer PR
 2. Reject changes that modify non-whitelisted files
 3. Merge accepted reviewer PRs into `codex/system-design-review-20260308`
 4. Keep `phase=OPEN` while still collecting reviewer input
+5. Add `merge-blocked` when the PR is not mergeable
 
 This is the collection phase.
+
+Maintainer trigger conditions:
+
+1. base branch is `codex/system-design-review-20260308`
+2. labels include:
+   - `ai-review-submission`
+   - `ready-for-maintainer`
+3. `review_status.yaml.phase == OPEN`
+
+If any trigger condition fails, `Codex` should not merge the PR.
 
 ---
 
@@ -181,13 +218,13 @@ Only summary work should continue.
 
 After peer review is complete and the review is frozen, the next step is not immediate adoption.
 
-The human owner should submit the consolidated review package to braintrust for final judgment.
+The human operator should manually trigger the `Claw` final-review role for final judgment.
 
 Minimum braintrust input package:
 
 1. `docs/tests/theory_change_review_index.md`
 2. `review_records/system_design_review_summary.md`
-3. all accepted reviewer PRs already merged into `review_branch`
+3. all accepted reviewer PRs already merged into `review_branch` by `Codex`
 4. candidate proposal files in `docs/tests/theory_change_reviews/`
 
 Braintrust should issue one of the following dispositions per proposal:
@@ -207,7 +244,7 @@ Accepted items must be recorded in:
 
 - `review_records/system_theory_change_tracking_register.md`
 
-This register should be updated only by `summary_owner` or `review_owner` after braintrust final approval.
+This register should be updated only by `tracking_operator` / `summary_owner` after final approval.
 
 Minimum fields to record:
 
@@ -251,14 +288,14 @@ This is the closure phase.
 The complete review loop is:
 
 1. publish `review_branch`
-2. invite reviewers
+2. use `Cursor` to invite and run reviewers
 3. reviewers submit PRs to `review_branch`
-4. human merges accepted review PRs
+4. `Codex` merges accepted review PRs
 5. human switches phase to `FROZEN`
 6. `summary_owner` updates final rollup
-7. human submits consolidated package to braintrust
-8. braintrust issues final dispositions
-9. approved items enter `system_theory_change_tracking_register.md`
+7. human manually triggers `Claw` final review
+8. `Claw` issues final dispositions
+9. `tracking_operator` enters approved items into `system_theory_change_tracking_register.md`
 10. human switches phase to `CLOSED`
 11. review is complete
 
