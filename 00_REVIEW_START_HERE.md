@@ -6,6 +6,10 @@
 
 本轮评审的唯一入口是本文件。
 
+如果你参与评审但**无法访问 GitHub**，请改读：
+
+- [00_LOCAL_REVIEW_START_HERE.md](./00_LOCAL_REVIEW_START_HERE.md)
+
 ---
 
 ## 系统是什么

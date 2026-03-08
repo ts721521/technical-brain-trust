@@ -12,6 +12,7 @@ github_execution_identity: service_account
 peer_review_completion_mode: all_active_reviewers
 result_mode: repo_files
 entry_file: 00_REVIEW_START_HERE.md
+local_entry_file: 00_LOCAL_REVIEW_START_HERE.md
 cursor_orchestrator_file: docs/tests/cursor_orchestrator_start_here.md
 cursor_reviewer_file: docs/tests/cursor_reviewer_start_here.md
 codex_maintainer_file: docs/tests/codex_maintainer_start_here.md
