@@ -41,6 +41,24 @@
 
 ---
 
+## Braintrust Final Review
+
+| Proposal ID | Braintrust Disposition | Decision Rationale | Final Reviewer | Evidence Link |
+|---|---|---|---|---|
+|  | pending |  |  |  |
+
+---
+
+## Formal Change Tracking
+
+Accepted items must also be recorded in:
+
+- [system_theory_change_tracking_register.md](./system_theory_change_tracking_register.md)
+
+If an item is not entered there, it has not entered formal follow-up.
+
+---
+
 ## Closure Record
 
 - Closed by: `pending`

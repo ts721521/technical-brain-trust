@@ -9,6 +9,8 @@ It exists to prevent three failure modes:
 1. Multiple reviewers pushing directly to the same branch and overwriting each other
 2. Reviews being written but never merged into the canonical review branch
 3. Review collection ending without a clear freeze and close step
+4. AI peer review ending without a final braintrust approval step
+5. Accepted changes never entering a formal tracking register
 
 ---
 
@@ -85,6 +87,29 @@ Before submission, each reviewer should confirm:
 
 ---
 
+## Peer Review Completion Rule
+
+AI review is not considered complete merely because proposals exist.
+
+For each proposal, peer review is considered complete only when:
+
+1. the proposal body is filled
+2. the proposal has reviewer ratings from every other active reviewer
+3. each rating includes:
+   - `Priority`
+   - `Evidence Anchor`
+   - `Reason`
+4. the rollup in `docs/tests/theory_change_review_index.md` has been updated
+
+If one or more reviewers are unavailable, `review_owner` may explicitly waive missing reviewers.
+That waiver should be recorded in:
+
+- `review_records/system_design_review_summary.md`
+
+Until then, the proposal remains peer-review-incomplete.
+
+---
+
 ## PR Title Convention
 
 Recommended PR title:
@@ -115,6 +140,26 @@ This is the collection phase.
 
 ---
 
+## Mutual Review Semantics
+
+Each reviewer is expected to judge whether another AI's proposal is:
+
+- theoretically sound
+- consistent with the charter's red lines
+- operationally enforceable
+- likely to reduce real system risk
+- likely to create new friction or loopholes
+
+This means reviewers are not only scoring "is it interesting", but also:
+
+1. is the proposal internally coherent
+2. does it conflict with business truth source rules
+3. does it weaken gate semantics or accountability
+4. does it create implementation ambiguity
+5. does it deserve escalation into formal change tracking
+
+---
+
 ## Freeze Phase
 
 When reviewer collection is complete, `review_owner` changes:
@@ -126,8 +171,57 @@ At this point:
 - normal reviewers stop editing
 - no more reviewer PRs should be opened
 - `summary_owner` consolidates accepted review results
+- only files listed in `post_freeze_write_paths` should continue to change
 
 Only summary work should continue.
+
+---
+
+## Braintrust Final Approval
+
+After peer review is complete and the review is frozen, the next step is not immediate adoption.
+
+The human owner should submit the consolidated review package to braintrust for final judgment.
+
+Minimum braintrust input package:
+
+1. `docs/tests/theory_change_review_index.md`
+2. `review_records/system_design_review_summary.md`
+3. all accepted reviewer PRs already merged into `review_branch`
+4. candidate proposal files in `docs/tests/theory_change_reviews/`
+
+Braintrust should issue one of the following dispositions per proposal:
+
+- `Approved for tracking`
+- `Deferred`
+- `Rejected`
+- `Needs rewrite`
+
+Only proposals that receive `Approved for tracking` are allowed to enter the formal change register.
+
+---
+
+## Formal Change Tracking
+
+Accepted items must be recorded in:
+
+- `review_records/system_theory_change_tracking_register.md`
+
+This register should be updated only by `summary_owner` or `review_owner` after braintrust final approval.
+
+Minimum fields to record:
+
+1. Proposal ID
+2. Title
+3. Source Author
+4. Peer Review Outcome
+5. Braintrust Final Disposition
+6. Target Docs / Systems
+7. Owner
+8. Tracking Status
+9. Evidence / Decision Links
+
+If a proposal has not been recorded there, it has not entered formal follow-up.
 
 ---
 
@@ -146,6 +240,7 @@ At this point:
 
 - all review files become read-only for normal reviewers
 - final human-facing conclusion is read from `review_records/system_design_review_summary.md`
+- formal follow-up begins from `review_records/system_theory_change_tracking_register.md`
 
 This is the closure phase.
 
@@ -161,7 +256,10 @@ The complete review loop is:
 4. human merges accepted review PRs
 5. human switches phase to `FROZEN`
 6. `summary_owner` updates final rollup
-7. human switches phase to `CLOSED`
-8. review is complete
+7. human submits consolidated package to braintrust
+8. braintrust issues final dispositions
+9. approved items enter `system_theory_change_tracking_register.md`
+10. human switches phase to `CLOSED`
+11. review is complete
 
 If any of these steps is missing, the review is not operationally closed.

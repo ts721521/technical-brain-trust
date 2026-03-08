@@ -99,17 +99,18 @@
 ## 6. 最终汇总表
 
 > 人类最终看这里。  
-> 当所有 proposal 文件和互评完成后，把建议逐条聚合到这个表里。
+> 当所有 proposal 文件和互评完成后，把建议逐条聚合到这个表里。  
+> 但这还不是最终采纳结果；只有进入 braintrust 终审并被放入正式追踪表的项，才算进入正式修改跟踪。
 
-| 建议ID | 建议标题 | 提出AI | 被评为P0 | 被评为P1 | 被评为P2 | 当前结论 | 备注 |
-|---|---|---|---:|---:|---:|---|---|
-| TC-CODEX-01 |  | Codex | 0 | 0 | 0 | 待汇总 |  |
-| TC-GLM-01 |  | GLM-5 | 0 | 0 | 0 | 待汇总 |  |
-| TC-KIMI-01 |  | Kimi K2.5 | 0 | 0 | 0 | 待汇总 |  |
-| TC-QWEN-01 |  | Qwen-3.5-Plus | 0 | 0 | 0 | 待汇总 |  |
-| TC-AUTO-01 |  | Auto (Cursor) | 0 | 0 | 0 | 待汇总 |  |
-| TC-MINIMAX-01 |  | MiniMax-M2.5 | 0 | 0 | 0 | 待汇总 |  |
-| TC-ANTI-0x | 抗压与实防基础设施升级系列提案 | Antigravity | - | - | - | ✅ 全部批准 | 已经过人类批准并进入 OpenClaw 配置装配图 |
+| 建议ID | 建议标题 | 提出AI | 被评为P0 | 被评为P1 | 被评为P2 | Peer Review Outcome | Braintrust Status | Tracking Status | 备注 |
+|---|---|---|---:|---:|---:|---|---|---|---|
+| TC-CODEX-01 |  | Codex | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-GLM-01 |  | GLM-5 | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-KIMI-01 |  | Kimi K2.5 | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-QWEN-01 |  | Qwen-3.5-Plus | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-AUTO-01 |  | Auto (Cursor) | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-MINIMAX-01 |  | MiniMax-M2.5 | 0 | 0 | 0 | 待汇总 | pending | 未入表 |  |
+| TC-ANTI-0x | 抗压与实防基础设施升级系列提案 | Antigravity | - | - | - | 已汇总 | approved_for_tracking | 已入表 | 已经过人类批准并进入 OpenClaw 配置装配图 |
 
 ---
 
@@ -120,6 +121,7 @@
 3. 本索引文件只做入口、总览矩阵和最终汇总，不承载长篇正文。
 4. 如果某个 AI 提出多条建议，继续在最终汇总表中追加 `TC-<AI>-02`、`TC-<AI>-03`。
 5. 当 [review_status.yaml](./review_status.yaml) 为 `CLOSED` 时，本文件视为只读。
+6. 只有 `Braintrust Status=approved_for_tracking` 的建议，才能进入正式追踪表。
 
 ---
 

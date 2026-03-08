@@ -70,6 +70,11 @@
 - `FROZEN`：普通 AI 停止写入，仅 `summary_owner` 可做汇总
 - `CLOSED`：所有 AI 只读，不再允许修改评审文件
 
+附加状态字段：
+
+- `braintrust_review_status`：标识智囊团终审是否完成
+- `post_freeze_write_paths`：标识 `FROZEN` 后只允许 `summary_owner` / 人类继续维护的文件
+
 如果你看到 `phase=CLOSED`，你的行为应立即切换为 **只读**。
 
 ---
@@ -150,6 +155,8 @@
 - 不直接 push 到 `codex/system-design-review-20260308`
 - 人类合并 reviewer PR
 - 收集完成后切到 `FROZEN`
+- `FROZEN` 后提交给 braintrust 做终审
+- 只有 braintrust 认可的项，才进入正式修改追踪表
 - 汇总完成后切到 `CLOSED`
 
 ---

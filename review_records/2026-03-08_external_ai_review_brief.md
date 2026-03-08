@@ -50,6 +50,8 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 - 评审完成后，请使用你自己的 reviewer branch 提交
 - 通过 PR 合并到 `codex/system-design-review-20260308`
 - 不要直接 push 到 `codex/system-design-review-20260308`
+- peer review 结束后，结论还会进入 braintrust 终审
+- 只有被 braintrust 批准的建议，才会进入正式变更追踪表
 
 请以公平、严格、可举证的方式评审当前系统设计，而不是做泛泛点评。
 ```
@@ -63,6 +65,7 @@ https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-revie
 - Review Commit: `d7032fcc5cf1f14cd19ddc112a8b4d4b16c3f7e0`
 - Entry File: [00_REVIEW_START_HERE.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/00_REVIEW_START_HERE.md)
 - Submission Protocol: [review_submission_protocol.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/docs/tests/review_submission_protocol.md)
+- Tracking Register: [system_theory_change_tracking_register.md](https://github.com/ts721521/technical-brain-trust/blob/codex/system-design-review-20260308/review_records/system_theory_change_tracking_register.md)
 
 ---
 
